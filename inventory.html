@@ -3,208 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Textile Inventory Manager</title>
+    <title>Textile Master Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f0f2f5; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { color: #1a73e8; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e8f0fe; padding-bottom: 10px; }
+        :root { --primary: #1a73e8; --secondary: #5f6368; --accent: #f39c12; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); padding-bottom: 50px; }
         
-        #summarySection { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 15px; background: #e8f0fe; border-radius: 8px; min-height: 50px; }
-        .stat-card { background: white; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #1a73e8; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        /* Mobile-First Navigation */
+        .nav-tabs { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
+        .tab { flex: 1; text-align: center; padding: 15px 0; font-weight: bold; color: var(--secondary); cursor: pointer; border-bottom: 3px solid transparent; }
+        .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
-        .search-container { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
-        .search-bar { flex-grow: 1; padding: 12px; border: 2px solid #1a73e8; border-radius: 8px; font-size: 16px; outline: none; }
+        .content { padding: 15px; max-width: 1000px; margin: auto; }
+        .section { display: none; }
+        .section.active { display: block; }
 
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
-        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        /* Cards & Forms */
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        .full-width { grid-column: span 2; }
         
-        .btn-group { margin-bottom: 20px; display: flex; gap: 10px; }
-        button { border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
-        .btn-add { background: #1a73e8; }
-        .btn-pack { background: #f39c12; }
-        .btn-return { background: #e74c3c; padding: 5px 10px; font-size: 12px; }
-        .view-toggle { background: #607d8b; font-size: 14px; }
+        button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
+        .btn-add { background: var(--primary); }
+        .btn-slip { background: var(--accent); }
+        
+        /* Stats */
+        .stats { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; }
+        .stat-box { background: #e8f0fe; padding: 10px; border-radius: 6px; border-left: 4px solid var(--primary); white-space: nowrap; font-size: 12px; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #f8f9fa; text-align: left; padding: 12px; border-bottom: 2px solid #dee2e6; }
-        td { padding: 12px; border-bottom: 1px solid #eee; }
-        .sold-row { background-color: #ffebee; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 13px; }
+        th { text-align: left; background: #f1f3f4; padding: 10px; border-bottom: 2px solid #ddd; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .sold-row { background: #fff1f0; }
 
-        #packingListTemplate { position: absolute; left: -9999px; width: 1000px; padding: 50px; background: white; color: black; }
-        .pl-header { text-align: center; border-bottom: 3px solid #000; margin-bottom: 30px; }
-        .pl-table { width: 100%; border-collapse: collapse; }
-        .pl-table th, .pl-table td { border: 1px solid #000; padding: 10px; text-align: center; }
-        .pl-footer { margin-top: 40px; text-align: right; font-weight: bold; font-size: 1.3em; }
+        /* Hidden Template */
+        #slipTemplate { position: absolute; left: -9999px; width: 600px; padding: 30px; background: white; color: black; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>
-        <span>📦 Textile Manager</span>
-        <button class="view-toggle" id="viewToggle" onclick="toggleView()">Switch to Sales History</button>
-    </h2>
-    
-    <div id="summarySection">Loading calculations...</div>
-
-    <div id="entryForm">
-        <div class="form-grid">
-            <input type="text" id="rollNo" placeholder="Roll No">
-            <input type="text" id="sortNo" placeholder="Sort No">
-            <input type="number" id="meters" placeholder="Meters">
-            <input type="number" id="width" placeholder="Width">
-            <input type="number" id="netWeight" placeholder="Net Weight">
-            <input type="number" id="grossWeight" placeholder="Gross Weight">
-            <input type="text" id="grade" placeholder="Grade">
-            <input type="text" id="shade" placeholder="Shade">
-        </div>
-        <div class="btn-group">
-            <button class="btn-add" id="addBtn" onclick="addItem()">Add to Inventory</button>
-            <button class="btn-pack" id="packBtn" onclick="generatePackingImage()">Generate Packing Image</button>
-        </div>
-    </div>
-
-    <div class="search-container">
-        <input type="text" id="sortSearch" class="search-bar" placeholder="🔍 Search by Sort No..." onkeyup="updateUI()">
-    </div>
-
-    <table>
-        <thead>
-            <tr id="tableHeader"></tr>
-        </thead>
-        <tbody id="inventoryBody"></tbody>
-    </table>
+<div class="nav-tabs">
+    <div class="tab active" onclick="showTab('inv', this)">📦 Stock</div>
+    <div class="tab" onclick="showTab('ord', this)">📑 Orders</div>
+    <div class="tab" onclick="showTab('hist', this)">🕒 History</div>
 </div>
 
-<div id="packingListTemplate">
-    <div class="pl-header"><h1>PACKING LIST</h1></div>
-    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-        <div id="plClientName">Client: </div>
-        <div id="plDate">Date: </div>
+<div class="content">
+    <div id="inv" class="section active">
+        <div id="invStats" class="stats"></div>
+        <div class="card">
+            <div class="form-grid">
+                <input type="text" id="rNo" placeholder="Roll No">
+                <input type="text" id="sNo" placeholder="Sort No">
+                <input type="number" id="mtr" placeholder="Meters">
+                <input type="number" id="width" placeholder="Width">
+                <input type="number" id="nWt" placeholder="Net Wt">
+                <input type="number" id="gWt" placeholder="Gross Wt">
+                <input type="text" id="shade" placeholder="Grade/Shade" class="full-width">
+            </div>
+            <button class="btn-add" onclick="saveInv()">Add to Stock</button>
+        </div>
+        <input type="text" id="invSearch" placeholder="🔍 Search Sort No..." onkeyup="render()" style="margin: 10px 0;">
+        <button class="btn-slip" onclick="makeSlip()">Generate Packing Slip</button>
+        <table>
+            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Mtrs</th><th>Shade</th></tr></thead>
+            <tbody id="invBody"></tbody>
+        </table>
     </div>
-    <table class="pl-table">
-        <thead>
-            <tr><th>Roll No</th><th>Sort No</th><th>Meters</th><th>Width</th><th>Net Wt</th><th>Gross Wt</th><th>Grade</th><th>Shade</th></tr>
-        </thead>
-        <tbody id="plItems"></tbody>
+
+    <div id="ord" class="section">
+        <div class="card">
+            <div class="form-grid">
+                <input type="text" id="oClient" placeholder="Client Name" class="full-width">
+                <input type="text" id="oSort" placeholder="Sort No">
+                <input type="number" id="oMtr" placeholder="Meters">
+                <input type="number" id="oRate" placeholder="Rate / Meter" class="full-width">
+            </div>
+            <button class="btn-add" style="background:#2ecc71" onclick="saveOrd()">Save New Order</button>
+        </div>
+        <table>
+            <thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Value</th><th>Status</th></tr></thead>
+            <tbody id="ordBody"></tbody>
+        </table>
+    </div>
+
+    <div id="hist" class="section">
+        <table>
+            <thead><tr><th>Roll</th><th>Client</th><th>Meters</th><th>Action</th></tr></thead>
+            <tbody id="histBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="slipTemplate">
+    <h2 style="text-align:center; border-bottom:2px solid #000;">PACKING LIST</h2>
+    <p id="slipInfo"></p>
+    <table border="1" style="width:100%; border-collapse:collapse;">
+        <thead><tr><th>Roll</th><th>Sort</th><th>Meters</th><th>Net</th><th>Gross</th></tr></thead>
+        <tbody id="slipItems"></tbody>
     </table>
-    <div class="pl-footer" id="plTotalMeters"></div>
+    <h3 id="slipTotal" style="text-align:right;"></h3>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw93ANx_vty0JHolgFRnl89NQ8ABpi9_aJLGk-NNV2t_Th97FpamSVZ6iDPTG8ryAtwKQ/exec"; 
-    let allData = [];
-    let currentView = "Available";
+    const URL = "https://script.google.com/macros/s/AKfycbyEjIVtjGtB6lAKeQAeh6uaLD1JZ8XfgkvUoIsZwGrn_wIuF5uBjmCV9rNzk4M_AL3aaQ/exec";
+    let db = { inventory: [], orders: [] };
 
-    async function loadInventory() {
-        const response = await fetch(SCRIPT_URL);
-        allData = await response.json();
-        updateUI();
+    async function load() {
+        const r = await fetch(URL);
+        db = await r.json();
+        render();
     }
 
-    function toggleView() {
-        currentView = (currentView === "Available") ? "Sold" : "Available";
-        document.getElementById('viewToggle').innerText = (currentView === "Available") ? "Switch to Sales History" : "Back to Active Inventory";
-        document.getElementById('entryForm').style.display = (currentView === "Available") ? "block" : "none";
-        document.getElementById('sortSearch').placeholder = (currentView === "Available") ? "🔍 Search by Sort No..." : "🔍 Search by Client or Sort...";
-        updateUI();
+    function showTab(id, el) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        el.classList.add('active');
     }
 
-    async function addItem() {
-        const itemData = {
-            rollNo: document.getElementById('rollNo').value,
-            sortNo: document.getElementById('sortNo').value,
-            meters: document.getElementById('meters').value,
-            width: document.getElementById('width').value,
-            netWeight: document.getElementById('netWeight').value,
-            grossWeight: document.getElementById('grossWeight').value,
-            grade: document.getElementById('grade').value,
-            shade: document.getElementById('shade').value
-        };
-        const btn = document.getElementById('addBtn');
-        btn.disabled = true;
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(itemData) });
-        loadInventory();
-        document.querySelectorAll('#entryForm input').forEach(i => i.value = '');
-        btn.disabled = false;
+    async function saveInv() {
+        const p = { action: "addInventory", rollNo: val('rNo'), sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), shade: val('shade') };
+        await fetch(URL, { method: 'POST', body: JSON.stringify(p) });
+        clear(['rNo','sNo','mtr','width','nWt','gWt','shade']);
+        load();
     }
 
-    async function returnToStock(rollNo) {
-        if(!confirm("Return Roll #" + rollNo + " to active inventory?")) return;
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action: "return", rollNo: rollNo}) });
-        loadInventory();
+    async function saveOrd() {
+        const p = { action: "addOrder", client: val('oClient'), sort: val('oSort'), mtrs: val('oMtr'), rate: val('oRate') };
+        await fetch(URL, { method: 'POST', body: JSON.stringify(p) });
+        clear(['oClient','oSort','oMtr','oRate']);
+        load();
     }
 
-    async function generatePackingImage() {
-        const selectedRolls = Array.from(document.querySelectorAll('.roll-checkbox:checked')).map(cb => cb.getAttribute('data-roll'));
-        if (selectedRolls.length === 0) return alert("Select rolls first!");
-        const clientName = prompt("Enter Client Name:");
-        if (!clientName) return;
-
-        const items = allData.filter(i => selectedRolls.includes(i.rollNo.toString()));
-        document.getElementById('plClientName').innerText = "Client: " + clientName;
-        document.getElementById('plDate').innerText = "Date: " + new Date().toLocaleDateString();
+    function render() {
+        const query = val('invSearch').toLowerCase();
         
-        let itemsHtml = ""; let total = 0;
-        items.forEach(item => {
-            itemsHtml += `<tr><td>${item.rollNo}</td><td>${item.sortNo}</td><td>${item.meters}</td><td>${item.width}</td><td>${item.netWeight}</td><td>${item.grossWeight}</td><td>${item.grade}</td><td>${item.shade}</td></tr>`;
-            total += parseFloat(item.meters || 0);
+        // Stock Table & Stats
+        const ib = document.getElementById('invBody'); ib.innerHTML = "";
+        let s = {};
+        db.inventory.filter(i => i.status === 'Available' && i.sortNo.toLowerCase().includes(query)).forEach(i => {
+            ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}</td><td>${i.shade}</td></tr>`;
+            s[i.sortNo] = (s[i.sortNo] || 0) + parseFloat(i.meters);
         });
-        document.getElementById('plItems').innerHTML = itemsHtml;
-        document.getElementById('plTotalMeters').innerText = "Total: " + total.toFixed(2) + " Mtrs";
+        const st = document.getElementById('invStats'); st.innerHTML = "";
+        for(let k in s) st.innerHTML += `<div class="stat-box"><b>${k}:</b> ${s[k].toFixed(2)}m</div>`;
 
-        html2canvas(document.getElementById('packingListTemplate'), {scale: 2}).then(async canvas => {
-            const link = document.createElement('a');
-            link.download = `PackingList_${clientName}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
-            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action: "allot", clientName: clientName, rollNos: selectedRolls}) });
-            loadInventory();
+        // Orders Table
+        const ob = document.getElementById('ordBody'); ob.innerHTML = "";
+        db.orders.forEach(o => {
+            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>₹${o.total}</td><td>${o.status}</td></tr>`;
+        });
+
+        // History Table
+        const hb = document.getElementById('histBody'); hb.innerHTML = "";
+        db.inventory.filter(i => i.status === 'Sold').forEach(i => {
+            hb.innerHTML += `<tr class="sold-row"><td>${i.rollNo}</td><td>${i.client}</td><td>${i.meters}</td><td><button onclick="ret('${i.rollNo}')" style="padding:4px; font-size:10px; background:red;">Return</button></td></tr>`;
         });
     }
 
-    function updateUI() {
-        const header = document.getElementById('tableHeader');
-        const body = document.getElementById('inventoryBody');
-        const summary = document.getElementById('summarySection');
-        const searchTerm = document.getElementById('sortSearch').value.toLowerCase();
-        body.innerHTML = '';
-        
-        if (currentView === "Available") {
-            header.innerHTML = `<th>Select</th><th>Roll No</th><th>Sort No</th><th>Meters</th><th>Width</th><th>Net Wt</th><th>Gross Wt</th><th>Grade</th><th>Shade</th>`;
-            const filtered = allData.filter(i => 
-                i.status === "Available" && 
-                (i.sortNo.toString().toLowerCase().includes(searchTerm))
-            );
-            
-            let sortTotals = {};
-            filtered.forEach(item => {
-                body.innerHTML += `<tr><td><input type="checkbox" class="roll-checkbox" data-roll="${item.rollNo}"></td><td>${item.rollNo}</td><td>${item.sortNo}</td><td>${item.meters}</td><td>${item.width}</td><td>${item.netWeight}</td><td>${item.grossWeight}</td><td>${item.grade}</td><td>${item.shade}</td></tr>`;
-                sortTotals[item.sortNo] = (sortTotals[item.sortNo] || 0) + parseFloat(item.meters || 0);
-            });
-
-            summary.innerHTML = "";
-            for (let s in sortTotals) {
-                summary.innerHTML += `<div class="stat-card"><strong>Sort ${s}:</strong> ${sortTotals[s].toFixed(2)} m</div>`;
-            }
-            if (filtered.length === 0) summary.innerHTML = "No matching Sort No found.";
-
-        } else {
-            header.innerHTML = `<th>Roll No</th><th>Client</th><th>Meters</th><th>Sort No</th><th>Action</th>`;
-            const filteredSold = allData.filter(i => 
-                i.status === "Sold" && 
-                (i.sortNo.toString().toLowerCase().includes(searchTerm) || i.client.toLowerCase().includes(searchTerm))
-            );
-
-            summary.innerHTML = "Viewing Sold History";
-            filteredSold.forEach(item => {
-                body.innerHTML += `<tr class="sold-row"><td>${item.rollNo}</td><td>${item.client}</td><td>${item.meters}</td><td>${item.sortNo}</td><td><button class="btn-return" onclick="returnToStock('${item.rollNo}')">Return to Stock</button></td></tr>`;
-            });
-        }
+    async function ret(r) {
+        await fetch(URL, { method: 'POST', body: JSON.stringify({action:"return", rollNo:r}) });
+        load();
     }
 
-    window.onload = loadInventory;
+    async function makeSlip() {
+        const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
+        const cli = prompt("Client Name?");
+        if(!cli || !sel.length) return;
+        const items = db.inventory.filter(i => sel.includes(i.rollNo.toString()));
+        document.getElementById('slipInfo').innerText = `Client: ${cli} | Date: ${new Date().toLocaleDateString()}`;
+        let h = ""; let t = 0;
+        items.forEach(i => {
+            h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}</td><td>${i.netWeight}</td><td>${i.grossWeight}</td></tr>`;
+            t += parseFloat(i.meters);
+        });
+        document.getElementById('slipItems').innerHTML = h;
+        document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
+
+        html2canvas(document.getElementById('slipTemplate')).then(async c => {
+            const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
+            await fetch(URL, { method: 'POST', body: JSON.stringify({action:"allot", clientName:cli, rollNos:sel}) });
+            load();
+        });
+    }
+
+    const val = (id) => document.getElementById(id).value;
+    const clear = (ids) => ids.forEach(id => document.getElementById(id).value = "");
+    window.onload = load;
 </script>
 </body>
 </html>
