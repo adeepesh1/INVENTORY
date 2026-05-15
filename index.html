@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Textile ERP Unified</title>
+    <title>Textile ERP Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { --primary: #1a73e8; --accent: #f39c12; --bg: #f8f9fa; }
@@ -20,8 +20,10 @@
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
-        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; }
+        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; width: auto; }
         .btn-revert { background: #dc3545; }
+        .summary-container { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0 15px 0; }
+        .summary-card { background: white; padding: 10px 15px; border-radius: 8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-width: 110px; }
     </style>
 </head>
 <body>
@@ -35,6 +37,8 @@
 
 <div class="content">
     <div id="inv" class="section active">
+        <div id="sortSummary" class="summary-container"></div>
+
         <div class="card">
             <div class="grid">
                 <input type="text" id="rNo" placeholder="Roll No">
@@ -74,7 +78,7 @@
     </div>
 
     <div id="slipView" class="section">
-        <h3>Packing List History</h3>
+        <h3>Packing List Archive</h3>
         <table>
             <thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Action</th></tr></thead>
             <tbody id="slipListBody"></tbody>
@@ -107,7 +111,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpvzUkf5to76T9uf3E_m5VRbnfT-ZQMHJr0D3Up7kGhz41WxqTcNnjv4UWc7V0QiUV1w/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwC2iW3i4WIDFfEXC7jB4sRBGPqx68LtxDc20gk-wri5oYqDV-XDTcjbwnBROwME925iA/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
 
     function showTab(id, el) {
@@ -128,22 +132,37 @@
         const hb = document.getElementById('histBody');
         const ob = document.getElementById('ordBody');
         const slb = document.getElementById('slipListBody');
-        ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = "";
+        const sm = document.getElementById('sortSummary');
+        
+        ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = ""; sm.innerHTML = "";
+
+        let sortTotals = {};
 
         db.inventory.forEach(i => {
             if (i.status === 'Available') {
+                // Calculate Summary
+                let s = i.sortNo || "N/A";
+                sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
+
+                // Stock Table
                 ib.innerHTML += `<tr>
                     <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
                     <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td>
                     <td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
                 </tr>`;
             } else {
+                // History Table
                 hb.innerHTML += `<tr>
                     <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td>
                     <td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td>
                 </tr>`;
             }
         });
+
+        // Display Summary Cards
+        for (let s in sortTotals) {
+            sm.innerHTML += `<div class="summary-card"><small>Sort: ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
+        }
 
         db.orders.forEach(o => {
             const stats = ["Pending", "Ready", "Completed"];
@@ -201,7 +220,7 @@
     }
 
     async function revert(r) {
-        if(!confirm("Return Roll " + r + " to Stock?")) return;
+        if(!confirm("Revert Roll " + r + " to Stock?")) return;
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"revertRoll", rollNo:r}) });
         loadData();
     }
