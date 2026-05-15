@@ -86,22 +86,31 @@
     </div>
 </div>
 
-<div id="slipTemplate" style="position:absolute; left:-9999px; width:800px; padding:30px; background:white;">
-    <h2 style="text-align:center; text-decoration: underline;">PACKING LIST</h2>
-    <p id="slipInfo" style="font-weight: bold;"></p>
-    <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
+<div id="slipTemplate" style="position:absolute; left:-9999px; width:900px; padding:40px; background:white;">
+    <h1 style="text-align:center; text-decoration: underline; margin-bottom: 20px;">PACKING LIST</h1>
+    <div style="font-size: 18px; margin-bottom: 20px; line-height: 1.6;">
+        <p><b>Client:</b> <span id="slipClient"></span></p>
+        <p><b>Transport:</b> <span id="slipTransport"></span></p>
+        <p><b>Date:</b> <span id="slipDate"></span></p>
+    </div>
+    <table border="1" style="width:100%; border-collapse:collapse; text-align: center; font-size: 16px;">
         <thead>
             <tr style="background: #f2f2f2;">
-                <th>Roll No</th><th>Sort No</th><th>Meters</th><th>Width</th><th>Net Weight</th>
+                <th style="padding: 10px;">Roll No</th>
+                <th style="padding: 10px;">Sort No</th>
+                <th style="padding: 10px;">Grade</th>
+                <th style="padding: 10px;">Meters</th>
+                <th style="padding: 10px;">Width</th>
+                <th style="padding: 10px;">Net Wt</th>
             </tr>
         </thead>
         <tbody id="slipItems"></tbody>
     </table>
-    <h3 id="slipTotal" style="text-align:right; margin-top: 20px;"></h3>
+    <h2 id="slipTotal" style="text-align:right; margin-top: 30px; border-top: 2px solid #000; padding-top: 10px;"></h2>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykrQWayIcOT0V-upRY4cD_Bcm4n9DSGzGT8RGgnoFsnVgKvLQap6QVcnHvXNA6hvSwKg/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyPYFnH5ox5wXpP0N5MIJt8GXjVG4RDNeAIJtq0y_ty0tIY35iaw8M9ihgbDwppSGur-A/exec"; 
     let db = { inventory: [], orders: [] };
 
     function showTab(id, el) {
@@ -180,28 +189,43 @@
 
     async function makeSlip() {
         const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
+        if (!sel.length) {
+            alert("Please select rolls first!");
+            return;
+        }
+
         const cli = prompt("Client Name?");
-        if (!cli || !sel.length) return;
+        if (!cli) return;
+        
+        const trans = prompt("Transport Name?");
+        if (!trans) return;
 
         const items = db.inventory.filter(i => sel.includes(i.rollNo.toString()));
-        document.getElementById('slipInfo').innerText = `Client: ${cli} | Date: ${new Date().toLocaleDateString()}`;
+        document.getElementById('slipClient').innerText = cli;
+        document.getElementById('slipTransport').innerText = trans;
+        document.getElementById('slipDate').innerText = new Date().toLocaleDateString();
         
         let h = ""; let t = 0;
         items.forEach(i => {
-            h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
+            h += `<tr><td style="padding:10px;">${i.rollNo}</td><td style="padding:10px;">${i.sortNo}</td><td style="padding:10px;">${i.grade || '-'}</td><td style="padding:10px;">${i.meters}</td><td style="padding:10px;">${i.width || '-'}</td><td style="padding:10px;">${i.netWeight || '-'}</td></tr>`;
             t += parseFloat(i.meters);
         });
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
 
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel}) });
-        html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
-            const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
-            loadData();
-        });
+        try {
+            const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel}) });
+            if (res.ok) {
+                html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
+                    const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `PackingSlip_${cli}.png`; a.click();
+                    loadData();
+                });
+            }
+        } catch(e) { alert("Update Error - Check URL"); }
     }
 
     async function revert(r) {
+        if(!confirm("Move Roll " + r + " back to Available?")) return;
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"revertRoll", rollNo:r}) });
         loadData();
     }
