@@ -95,7 +95,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQeklD7i2Kzg4DB2zh3AwDBQTtJPC7SvB2WdWGTTAYeC2Fk7MPROVBaF5zE42upDp6qw/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw3k5rdFE3tq33TyVhjQfgjGU2c9F0WtUPAWxyQUIi0SmE3hvspaWyqlmDxujvZJzMZkw/exec"; 
     let db = { inventory: [], orders: [] };
 
     function showTab(id, el) {
@@ -180,6 +180,7 @@
         if (!cli || !sel.length) return;
         const items = db.inventory.filter(i => sel.includes(i.rollNo.toString()));
         document.getElementById('slipInfo').innerText = `Client: ${cli} | Date: ${new Date().toLocaleDateString()}`;
+        
         let h = ""; let t = 0;
         items.forEach(i => {
             h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}</td></tr>`;
@@ -187,11 +188,17 @@
         });
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
-        html2canvas(document.getElementById('slipTemplate')).then(async c => {
-            const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
-            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel}) });
-            loadData();
-        });
+
+        // POST TO SCRIPT BEFORE UPDATING UI
+        try {
+            const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel}) });
+            if (res.ok) {
+                html2canvas(document.getElementById('slipTemplate')).then(c => {
+                    const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
+                    loadData(); // REFRESH UI
+                });
+            }
+        } catch(e) { alert("Check internet/Script URL"); }
     }
 
     const val = (id) => document.getElementById(id).value;
