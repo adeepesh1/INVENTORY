@@ -20,7 +20,8 @@
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
-        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; width: auto; border: none; }
+        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; }
+        .btn-revert { background: #dc3545; }
     </style>
 </head>
 <body>
@@ -49,7 +50,9 @@
         </div>
         <button style="background:var(--accent)" onclick="makeSlip()">Generate Packing Slip</button>
         <table>
-            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Shade</th></tr></thead>
+            <thead>
+                <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th></tr>
+            </thead>
             <tbody id="invBody"></tbody>
         </table>
     </div>
@@ -71,7 +74,7 @@
     </div>
 
     <div id="slipView" class="section">
-        <h3>Packing List Archive</h3>
+        <h3>Packing List History</h3>
         <table>
             <thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Action</th></tr></thead>
             <tbody id="slipListBody"></tbody>
@@ -81,7 +84,9 @@
     <div id="hist" class="section">
         <h3>Sold Rolls</h3>
         <table>
-            <thead><tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th></tr></thead>
+            <thead>
+                <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Action</th></tr>
+            </thead>
             <tbody id="histBody"></tbody>
         </table>
     </div>
@@ -102,7 +107,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzCv3JVT8s7DE-yoVodGYKandXEl3WB0uxvlwWLZTycrh_7Mp4ZSNvkAQ-rFkB5vOW8g/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpvzUkf5to76T9uf3E_m5VRbnfT-ZQMHJr0D3Up7kGhz41WxqTcNnjv4UWc7V0QiUV1w/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
 
     function showTab(id, el) {
@@ -127,9 +132,16 @@
 
         db.inventory.forEach(i => {
             if (i.status === 'Available') {
-                ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.shade || '-'}</td></tr>`;
+                ib.innerHTML += `<tr>
+                    <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
+                    <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td>
+                    <td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
+                </tr>`;
             } else {
-                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td></tr>`;
+                hb.innerHTML += `<tr>
+                    <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td>
+                    <td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td>
+                </tr>`;
             }
         });
 
@@ -144,6 +156,12 @@
         });
     }
 
+    async function saveInv() {
+        const p = { action: "addInventory", rollNo: val('rNo'), sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), grade: val('grade'), shade: val('shade') };
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
+        loadData();
+    }
+
     async function makeSlip() {
         const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
         if (!sel.length) return alert("Select rolls!");
@@ -151,7 +169,6 @@
         const trans = prompt("Transport Name?");
         if (!cli || !trans) return;
 
-        // SEND TO APPS SCRIPT
         await fetch(SCRIPT_URL, { 
             method: 'POST', 
             body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
@@ -173,19 +190,19 @@
         document.getElementById('slipDate').innerText = date;
         let h = ""; let t = 0;
         items.forEach(i => {
-            h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width}</td><td>${i.netWeight}</td></tr>`;
+            h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
             t += parseFloat(i.meters);
         });
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
-            const b = document.createElement('a'); b.href = c.toDataURL(); b.download = `Slip_${cli}.png`; b.click();
+            const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
         });
     }
 
-    async function saveInv() {
-        const p = { action: "addInventory", rollNo: val('rNo'), sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), grade: val('grade'), shade: val('shade') };
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
+    async function revert(r) {
+        if(!confirm("Return Roll " + r + " to Stock?")) return;
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"revertRoll", rollNo:r}) });
         loadData();
     }
 
