@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Master</title>
+    <title>Textile ERP Unified</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { --primary: #1a73e8; --accent: #f39c12; --bg: #f8f9fa; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); padding-bottom: 50px; }
-        .nav { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
-        .tab { flex: 1; text-align: center; padding: 15px; font-weight: bold; color: #555; cursor: pointer; border-bottom: 3px solid transparent; }
+        .nav { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; overflow-x: auto; }
+        .tab { flex: 1; text-align: center; padding: 15px; font-weight: bold; color: #555; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
         .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
         .content { padding: 15px; max-width: 1000px; margin: auto; }
         .section { display: none; }
@@ -18,11 +18,9 @@
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         input, select { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; }
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
-        .stats { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; }
-        .stat-box { background: #e8f0fe; padding: 10px; border-radius: 6px; border-left: 4px solid var(--primary); font-size: 12px; white-space: nowrap; }
         table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
-        .btn-small { padding: 5px 8px; font-size: 11px; width: auto; background: #6c757d; color: white; border-radius: 4px; cursor: pointer; }
+        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; width: auto; border: none; }
     </style>
 </head>
 <body>
@@ -30,12 +28,12 @@
 <div class="nav">
     <div class="tab active" onclick="showTab('inv', this)">📦 Stock</div>
     <div class="tab" onclick="showTab('ord', this)">📑 Orders</div>
+    <div class="tab" onclick="showTab('slipView', this)">📜 Slips</div>
     <div class="tab" onclick="showTab('hist', this)">🕒 History</div>
 </div>
 
 <div class="content">
     <div id="inv" class="section active">
-        <div id="invStats" class="stats"></div>
         <div class="card">
             <div class="grid">
                 <input type="text" id="rNo" placeholder="Roll No">
@@ -49,12 +47,9 @@
             </div>
             <button style="background:var(--primary)" onclick="saveInv()">Add to Stock</button>
         </div>
-        <input type="text" id="search" placeholder="🔍 Search Sort..." onkeyup="render()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
         <button style="background:var(--accent)" onclick="makeSlip()">Generate Packing Slip</button>
         <table>
-            <thead>
-                <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th></tr>
-            </thead>
+            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Shade</th></tr></thead>
             <tbody id="invBody"></tbody>
         </table>
     </div>
@@ -67,51 +62,48 @@
                 <input type="number" id="oMtr" placeholder="Meters">
                 <input type="number" id="oRate" placeholder="Rate">
             </div>
-            <button style="background:#2ecc71" onclick="saveOrd()">Save New Order</button>
+            <button style="background:#2ecc71" onclick="saveOrd()">Save Order</button>
         </div>
         <table>
-            <thead>
-                <tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr>
-            </thead>
+            <thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr></thead>
             <tbody id="ordBody"></tbody>
+        </table>
+    </div>
+
+    <div id="slipView" class="section">
+        <h3>Packing List Archive</h3>
+        <table>
+            <thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Action</th></tr></thead>
+            <tbody id="slipListBody"></tbody>
         </table>
     </div>
 
     <div id="hist" class="section">
         <h3>Sold Rolls</h3>
         <table>
-            <thead><tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Action</th></tr></thead>
+            <thead><tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th></tr></thead>
             <tbody id="histBody"></tbody>
         </table>
     </div>
 </div>
 
-<div id="slipTemplate" style="position:absolute; left:-9999px; width:900px; padding:40px; background:white;">
-    <h1 style="text-align:center; text-decoration: underline; margin-bottom: 20px;">PACKING LIST</h1>
-    <div style="font-size: 18px; margin-bottom: 20px; line-height: 1.6;">
+<div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
+    <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
+    <div style="font-size: 18px; margin-bottom: 20px;">
         <p><b>Client:</b> <span id="slipClient"></span></p>
         <p><b>Transport:</b> <span id="slipTransport"></span></p>
         <p><b>Date:</b> <span id="slipDate"></span></p>
     </div>
-    <table border="1" style="width:100%; border-collapse:collapse; text-align: center; font-size: 16px;">
-        <thead>
-            <tr style="background: #f2f2f2;">
-                <th style="padding: 10px;">Roll No</th>
-                <th style="padding: 10px;">Sort No</th>
-                <th style="padding: 10px;">Grade</th>
-                <th style="padding: 10px;">Meters</th>
-                <th style="padding: 10px;">Width</th>
-                <th style="padding: 10px;">Net Wt</th>
-            </tr>
-        </thead>
+    <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
+        <thead><tr style="background:#f2f2f2;"><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th></tr></thead>
         <tbody id="slipItems"></tbody>
     </table>
-    <h2 id="slipTotal" style="text-align:right; margin-top: 30px; border-top: 2px solid #000; padding-top: 10px;"></h2>
+    <h2 id="slipTotal" style="text-align:right; margin-top:25px;"></h2>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbweWRntfzYpQzuKoSvPBpiErk2qcF4zPi2cBWf1FdQJBF2eWRG0y2EkUq2cMCi7UIWFlQ/exec"; 
-    let db = { inventory: [], orders: [] };
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzCv3JVT8s7DE-yoVodGYKandXEl3WB0uxvlwWLZTycrh_7Mp4ZSNvkAQ-rFkB5vOW8g/exec"; 
+    let db = { inventory: [], orders: [], slips: [] };
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -126,10 +118,75 @@
         render();
     }
 
+    function render() {
+        const ib = document.getElementById('invBody');
+        const hb = document.getElementById('histBody');
+        const ob = document.getElementById('ordBody');
+        const slb = document.getElementById('slipListBody');
+        ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = "";
+
+        db.inventory.forEach(i => {
+            if (i.status === 'Available') {
+                ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.shade || '-'}</td></tr>`;
+            } else {
+                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td></tr>`;
+            }
+        });
+
+        db.orders.forEach(o => {
+            const stats = ["Pending", "Ready", "Completed"];
+            let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
+            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`;
+        });
+
+        db.slips.reverse().forEach(s => {
+            slb.innerHTML += `<tr><td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td><button class="btn-small" onclick="rebuildSlip('${s.id}')">Download</button></td></tr>`;
+        });
+    }
+
+    async function makeSlip() {
+        const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
+        if (!sel.length) return alert("Select rolls!");
+        const cli = prompt("Client Name?");
+        const trans = prompt("Transport Name?");
+        if (!cli || !trans) return;
+
+        // SEND TO APPS SCRIPT
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
+        });
+
+        buildImage(cli, trans, new Date().toLocaleDateString(), sel);
+        loadData();
+    }
+
+    function rebuildSlip(sid) {
+        const s = db.slips.find(x => x.id == sid);
+        buildImage(s.client, s.transport, s.date, s.rolls.split(","));
+    }
+
+    function buildImage(cli, trans, date, rollNos) {
+        const items = db.inventory.filter(i => rollNos.includes(i.rollNo.toString()));
+        document.getElementById('slipClient').innerText = cli;
+        document.getElementById('slipTransport').innerText = trans;
+        document.getElementById('slipDate').innerText = date;
+        let h = ""; let t = 0;
+        items.forEach(i => {
+            h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width}</td><td>${i.netWeight}</td></tr>`;
+            t += parseFloat(i.meters);
+        });
+        document.getElementById('slipItems').innerHTML = h;
+        document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
+        html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
+            const b = document.createElement('a'); b.href = c.toDataURL(); b.download = `Slip_${cli}.png`; b.click();
+        });
+    }
+
     async function saveInv() {
         const p = { action: "addInventory", rollNo: val('rNo'), sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), grade: val('grade'), shade: val('shade') };
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
-        location.reload();
+        loadData();
     }
 
     async function saveOrd() {
@@ -138,96 +195,8 @@
         loadData();
     }
 
-    async function changeStatus(id, newStatus) {
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action: "updateOrderStatus", orderId: id, newStatus: newStatus}) });
-        loadData();
-    }
-
-    function render() {
-        const query = val('search').toLowerCase();
-        const ib = document.getElementById('invBody');
-        const hb = document.getElementById('histBody');
-        const ob = document.getElementById('ordBody');
-        const st = document.getElementById('invStats');
-        ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; st.innerHTML = "";
-        let totals = {};
-
-        db.inventory.forEach(i => {
-            if (i.status === 'Available') {
-                totals[i.sortNo] = (totals[i.sortNo] || 0) + parseFloat(i.meters);
-                if (i.sortNo.toLowerCase().includes(query)) {
-                    ib.innerHTML += `<tr>
-                        <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
-                        <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade || '-'}</td>
-                        <td>${i.meters}m</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
-                    </tr>`;
-                }
-            } else {
-                hb.innerHTML += `<tr>
-                    <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade || '-'}</td><td>${i.meters}m</td>
-                    <td><button class="btn-small" onclick="revert('${i.rollNo}')">Revert</button></td>
-                </tr>`;
-            }
-        });
-
-        if(db.orders) {
-            db.orders.forEach(o => {
-                const statuses = ["Pending", "Processing", "Ready", "Completed"];
-                let options = statuses.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join('');
-                ob.innerHTML += `<tr>
-                    <td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td>
-                    <td>${o.mtrs}m</td><td>₹${o.rate}</td>
-                    <td><select onchange="changeStatus('${o.id}', this.value)">${options}</select></td>
-                </tr>`;
-            });
-        }
-
-        for (let s in totals) {
-            st.innerHTML += `<div class="stat-box"><b>${s}:</b> ${totals[s].toFixed(2)}m</div>`;
-        }
-    }
-
-    async function makeSlip() {
-        const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
-        if (!sel.length) {
-            alert("Please select rolls first!");
-            return;
-        }
-
-        const cli = prompt("Client Name?");
-        if (!cli) return;
-        
-        const trans = prompt("Transport Name?");
-        if (!trans) return;
-
-        const items = db.inventory.filter(i => sel.includes(i.rollNo.toString()));
-        document.getElementById('slipClient').innerText = cli;
-        document.getElementById('slipTransport').innerText = trans;
-        document.getElementById('slipDate').innerText = new Date().toLocaleDateString();
-        
-        let h = ""; let t = 0;
-        items.forEach(i => {
-            h += `<tr><td style="padding:10px;">${i.rollNo}</td><td style="padding:10px;">${i.sortNo}</td><td style="padding:10px;">${i.grade || '-'}</td><td style="padding:10px;">${i.meters}</td><td style="padding:10px;">${i.width || '-'}</td><td style="padding:10px;">${i.netWeight || '-'}</td></tr>`;
-            t += parseFloat(i.meters);
-        });
-        document.getElementById('slipItems').innerHTML = h;
-        document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
-
-        try {
-            const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel}) });
-            if (res.ok) {
-                html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
-                    const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `PackingSlip_${cli}.png`; a.click();
-                    loadData();
-                });
-            }
-        } catch(e) { alert("Update Error - Check URL"); }
-    }
-
-    async function revert(r) {
-        if(!confirm("Move Roll " + r + " back to Available?")) return;
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"revertRoll", rollNo:r}) });
-        loadData();
+    async function updateOrd(id, s) {
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"updateOrderStatus", orderId:id, newStatus:s}) });
     }
 
     const val = (id) => document.getElementById(id).value;
