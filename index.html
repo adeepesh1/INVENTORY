@@ -16,14 +16,15 @@
         .section.active { display: block; }
         .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        input, select { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; }
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
-        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; width: auto; }
+        .summary-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
+        .summary-card { background: #fff; padding: 10px; border-radius: 8px; border-left: 5px solid var(--primary); min-width: 100px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .search-box { margin-bottom: 15px; display: flex; gap: 5px; }
+        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; }
         .btn-revert { background: #dc3545; }
-        .summary-container { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0 15px 0; }
-        .summary-card { background: white; padding: 10px 15px; border-radius: 8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-width: 110px; }
     </style>
 </head>
 <body>
@@ -37,6 +38,11 @@
 
 <div class="content">
     <div id="inv" class="section active">
+        <div class="search-box">
+            <input type="text" id="sortSearch" placeholder="Search Sort No..." onkeyup="render()">
+            <button style="width: 80px; margin:0; background:#666" onclick="document.getElementById('sortSearch').value=''; render();">Clear</button>
+        </div>
+        
         <div id="sortSummary" class="summary-container"></div>
 
         <div class="card">
@@ -52,66 +58,40 @@
             </div>
             <button style="background:var(--primary)" onclick="saveInv()">Add to Stock</button>
         </div>
+        
         <button style="background:var(--accent)" onclick="makeSlip()">Generate Packing Slip</button>
+        
         <table>
-            <thead>
-                <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th></tr>
-            </thead>
+            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th></tr></thead>
             <tbody id="invBody"></tbody>
         </table>
     </div>
 
     <div id="ord" class="section">
-        <div class="card">
-            <div class="grid">
-                <input type="text" id="oClient" placeholder="Client Name">
-                <input type="text" id="oSort" placeholder="Sort No">
-                <input type="number" id="oMtr" placeholder="Meters">
-                <input type="number" id="oRate" placeholder="Rate">
-            </div>
-            <button style="background:#2ecc71" onclick="saveOrd()">Save Order</button>
-        </div>
-        <table>
-            <thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr></thead>
-            <tbody id="ordBody"></tbody>
-        </table>
+        <div class="card"><div class="grid"><input type="text" id="oClient" placeholder="Client"><input type="text" id="oSort" placeholder="Sort"><input type="number" id="oMtr" placeholder="Mtrs"><input type="number" id="oRate" placeholder="Rate"></div><button style="background:#2ecc71" onclick="saveOrd()">Save Order</button></div>
+        <table><thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr></thead><tbody id="ordBody"></tbody></table>
     </div>
 
     <div id="slipView" class="section">
-        <h3>Packing List Archive</h3>
-        <table>
-            <thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Action</th></tr></thead>
-            <tbody id="slipListBody"></tbody>
-        </table>
+        <h3>Archive</h3>
+        <table><thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Action</th></tr></thead><tbody id="slipListBody"></tbody></table>
     </div>
 
     <div id="hist" class="section">
-        <h3>Sold Rolls</h3>
-        <table>
-            <thead>
-                <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Action</th></tr>
-            </thead>
-            <tbody id="histBody"></tbody>
-        </table>
+        <h3>Sold</h3>
+        <table><thead><tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Action</th></tr></thead><tbody id="histBody"></tbody></table>
     </div>
 </div>
 
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
     <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
-    <div style="font-size: 18px; margin-bottom: 20px;">
-        <p><b>Client:</b> <span id="slipClient"></span></p>
-        <p><b>Transport:</b> <span id="slipTransport"></span></p>
-        <p><b>Date:</b> <span id="slipDate"></span></p>
-    </div>
-    <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
-        <thead><tr style="background:#f2f2f2;"><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th></tr></thead>
-        <tbody id="slipItems"></tbody>
-    </table>
+    <div style="font-size: 18px; margin-bottom: 20px;"><p><b>Client:</b> <span id="slipClient"></span></p><p><b>Transport:</b> <span id="slipTransport"></span></p><p><b>Date:</b> <span id="slipDate"></span></p></div>
+    <table border="1" style="width:100%; border-collapse:collapse; text-align: center;"><thead><tr style="background:#f2f2f2;"><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th></tr></thead><tbody id="slipItems"></tbody></table>
     <h2 id="slipTotal" style="text-align:right; margin-top:25px;"></h2>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwC2iW3i4WIDFfEXC7jB4sRBGPqx68LtxDc20gk-wri5oYqDV-XDTcjbwnBROwME925iA/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxuGBighiBfgGw1hIBICY_czsOgRxzro-7qzj1ZQLJdGRUCgEcF3ehLHy6CVSi5u4XkgA/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
 
     function showTab(id, el) {
@@ -133,41 +113,33 @@
         const ob = document.getElementById('ordBody');
         const slb = document.getElementById('slipListBody');
         const sm = document.getElementById('sortSummary');
+        const filter = document.getElementById('sortSearch').value.toLowerCase();
         
         ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = ""; sm.innerHTML = "";
-
         let sortTotals = {};
 
         db.inventory.forEach(i => {
             if (i.status === 'Available') {
-                // Calculate Summary
+                // Summary Logic (All available stock)
                 let s = i.sortNo || "N/A";
                 sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
 
-                // Stock Table
-                ib.innerHTML += `<tr>
-                    <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
-                    <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td>
-                    <td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
-                </tr>`;
+                // Table Filtering
+                if (s.toLowerCase().includes(filter)) {
+                    ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
+                }
             } else {
-                // History Table
-                hb.innerHTML += `<tr>
-                    <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td>
-                    <td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td>
-                </tr>`;
+                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
             }
         });
 
-        // Display Summary Cards
+        // Show Totals Cards
         for (let s in sortTotals) {
-            sm.innerHTML += `<div class="summary-card"><small>Sort: ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
+            sm.innerHTML += `<div class="summary-card"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
 
         db.orders.forEach(o => {
-            const stats = ["Pending", "Ready", "Completed"];
-            let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
-            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`;
+            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td>${o.status}</td></tr>`;
         });
 
         db.slips.reverse().forEach(s => {
@@ -187,12 +159,7 @@
         const cli = prompt("Client Name?");
         const trans = prompt("Transport Name?");
         if (!cli || !trans) return;
-
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
-        });
-
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) });
         buildImage(cli, trans, new Date().toLocaleDateString(), sel);
         loadData();
     }
@@ -220,7 +187,7 @@
     }
 
     async function revert(r) {
-        if(!confirm("Revert Roll " + r + " to Stock?")) return;
+        if(!confirm("Revert Roll " + r + "?")) return;
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"revertRoll", rollNo:r}) });
         loadData();
     }
@@ -229,10 +196,6 @@
         const p = { action: "addOrder", client: val('oClient'), sort: val('oSort'), mtrs: val('oMtr'), rate: val('oRate') };
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
         loadData();
-    }
-
-    async function updateOrd(id, s) {
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"updateOrderStatus", orderId:id, newStatus:s}) });
     }
 
     const val = (id) => document.getElementById(id).value;
