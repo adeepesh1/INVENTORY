@@ -20,9 +20,9 @@
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
         .stats { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; }
         .stat-box { background: #e8f0fe; padding: 10px; border-radius: 6px; border-left: 4px solid var(--primary); font-size: 12px; white-space: nowrap; }
-        table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        .btn-small { padding: 5px 8px; margin: 0; font-size: 11px; width: auto; background: #6c757d; color: white; border-radius: 4px; border: none; cursor: pointer; }
+        .btn-small { padding: 5px 8px; font-size: 11px; width: auto; background: #6c757d; color: white; border-radius: 4px; cursor: pointer; margin: 0; }
     </style>
 </head>
 <body>
@@ -49,10 +49,12 @@
             </div>
             <button style="background:var(--primary)" onclick="saveInv()">Add to Stock</button>
         </div>
-        <input type="text" id="search" placeholder="🔍 Search Sort No..." onkeyup="render()" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:5px;">
+        <input type="text" id="search" placeholder="🔍 Search Sort No..." onkeyup="render()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:5px;">
         <button style="background:var(--accent)" onclick="makeSlip()">Generate Packing Slip</button>
         <table>
-            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Mtrs</th><th>Shade</th></tr></thead>
+            <thead>
+                <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Mtrs</th><th>Width</th><th>Net Wt</th></tr>
+            </thead>
             <tbody id="invBody"></tbody>
         </table>
     </div>
@@ -65,16 +67,16 @@
                 <input type="number" id="oMtr" placeholder="Meters">
                 <input type="number" id="oRate" placeholder="Rate">
             </div>
-            <button style="background:#2ecc71" onclick="saveOrd()">Save Order</button>
+            <button style="background:#2ecc71" onclick="saveOrd()">Save New Order</button>
         </div>
         <table>
-            <thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Status Update</th></tr></thead>
+            <thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Status</th></tr></thead>
             <tbody id="ordBody"></tbody>
         </table>
     </div>
 
     <div id="hist" class="section">
-        <h3>Sold Rolls (History)</h3>
+        <h3>Sold Rolls</h3>
         <table>
             <thead><tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Action</th></tr></thead>
             <tbody id="histBody"></tbody>
@@ -93,7 +95,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxYzPzk9_eOmpdDzFq2DhE0Rs28M8oY1pE8BLTSutgxfbSb9KG-0ApeInb19p7pMrXQdw/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQeklD7i2Kzg4DB2zh3AwDBQTtJPC7SvB2WdWGTTAYeC2Fk7MPROVBaF5zE42upDp6qw/exec"; 
     let db = { inventory: [], orders: [] };
 
     function showTab(id, el) {
@@ -127,7 +129,7 @@
     }
 
     async function makeAvailable(rollNo) {
-        if(!confirm("Move Roll " + rollNo + " back to Available Stock?")) return;
+        if(!confirm("Move Roll " + rollNo + " back to Stock?")) return;
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action: "revertRoll", rollNo: rollNo}) });
         loadData();
     }
@@ -145,16 +147,16 @@
             if (i.status === 'Available') {
                 totals[i.sortNo] = (totals[i.sortNo] || 0) + parseFloat(i.meters);
                 if (i.sortNo.toLowerCase().includes(query)) {
-                    ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}m</td><td>${i.shade}</td></tr>`;
+                    ib.innerHTML += `<tr>
+                        <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
+                        <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}m</td>
+                        <td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
+                    </tr>`;
                 }
             } else {
-                // ADDED GRADE COLUMN HERE
                 hb.innerHTML += `<tr>
-                    <td>${i.rollNo}</td>
-                    <td>${i.sortNo}</td>
-                    <td>${i.grade || '-'}</td>
-                    <td>${i.meters}m</td>
-                    <td><button class="btn-small" onclick="makeAvailable('${i.rollNo}')">Make Available</button></td>
+                    <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade || '-'}</td><td>${i.meters}m</td>
+                    <td><button class="btn-small" onclick="makeAvailable('${i.rollNo}')">Revert</button></td>
                 </tr>`;
             }
         });
