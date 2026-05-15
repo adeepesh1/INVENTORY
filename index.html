@@ -3,97 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Textile Master Pro</title>
+    <title>Textile Inventory - Basic</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { --primary: #1a73e8; --secondary: #5f6368; --accent: #f39c12; --bg: #f8f9fa; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); padding-bottom: 50px; }
-        
-        /* Mobile-First Navigation */
         .nav-tabs { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
         .tab { flex: 1; text-align: center; padding: 15px 0; font-weight: bold; color: var(--secondary); cursor: pointer; border-bottom: 3px solid transparent; }
         .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
-
         .content { padding: 15px; max-width: 1000px; margin: auto; }
-        .section { display: none; }
-        .section.active { display: block; }
-
-        /* Cards & Forms */
         .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
         .full-width { grid-column: span 2; }
-        
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
         .btn-add { background: var(--primary); }
         .btn-slip { background: var(--accent); }
-        
-        /* Stats */
-        .stats { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; }
+        .stats { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; min-height: 40px; }
         .stat-box { background: #e8f0fe; padding: 10px; border-radius: 6px; border-left: 4px solid var(--primary); white-space: nowrap; font-size: 12px; }
-
         table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; font-size: 13px; }
         th { text-align: left; background: #f1f3f4; padding: 10px; border-bottom: 2px solid #ddd; }
         td { padding: 10px; border-bottom: 1px solid #eee; }
-        .sold-row { background: #fff1f0; }
-
-        /* Hidden Template */
         #slipTemplate { position: absolute; left: -9999px; width: 600px; padding: 30px; background: white; color: black; }
     </style>
 </head>
 <body>
 
 <div class="nav-tabs">
-    <div class="tab active" onclick="showTab('inv', this)">📦 Stock</div>
-    <div class="tab" onclick="showTab('ord', this)">📑 Orders</div>
-    <div class="tab" onclick="showTab('hist', this)">🕒 History</div>
+    <div class="tab active">📦 Inventory Management</div>
 </div>
 
 <div class="content">
-    <div id="inv" class="section active">
-        <div id="invStats" class="stats"></div>
-        <div class="card">
-            <div class="form-grid">
-                <input type="text" id="rNo" placeholder="Roll No">
-                <input type="text" id="sNo" placeholder="Sort No">
-                <input type="number" id="mtr" placeholder="Meters">
-                <input type="number" id="width" placeholder="Width">
-                <input type="number" id="nWt" placeholder="Net Wt">
-                <input type="number" id="gWt" placeholder="Gross Wt">
-                <input type="text" id="shade" placeholder="Grade/Shade" class="full-width">
-            </div>
-            <button class="btn-add" onclick="saveInv()">Add to Stock</button>
+    <div id="invStats" class="stats"></div>
+
+    <div class="card">
+        <div class="form-grid">
+            <input type="text" id="rNo" placeholder="Roll No">
+            <input type="text" id="sNo" placeholder="Sort No">
+            <input type="number" id="mtr" placeholder="Meters">
+            <input type="number" id="width" placeholder="Width">
+            <input type="number" id="nWt" placeholder="Net Weight">
+            <input type="number" id="gWt" placeholder="Gross Weight">
+            <input type="text" id="grade" placeholder="Grade">
+            <input type="text" id="shade" placeholder="Shade">
         </div>
-        <input type="text" id="invSearch" placeholder="🔍 Search Sort No..." onkeyup="render()" style="margin: 10px 0;">
-        <button class="btn-slip" onclick="makeSlip()">Generate Packing Slip</button>
-        <table>
-            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Mtrs</th><th>Shade</th></tr></thead>
-            <tbody id="invBody"></tbody>
-        </table>
+        <button class="btn-add" onclick="saveInv()">Add to Stock</button>
     </div>
 
-    <div id="ord" class="section">
-        <div class="card">
-            <div class="form-grid">
-                <input type="text" id="oClient" placeholder="Client Name" class="full-width">
-                <input type="text" id="oSort" placeholder="Sort No">
-                <input type="number" id="oMtr" placeholder="Meters">
-                <input type="number" id="oRate" placeholder="Rate / Meter" class="full-width">
-            </div>
-            <button class="btn-add" style="background:#2ecc71" onclick="saveOrd()">Save New Order</button>
-        </div>
-        <table>
-            <thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Value</th><th>Status</th></tr></thead>
-            <tbody id="ordBody"></tbody>
-        </table>
-    </div>
+    <input type="text" id="invSearch" placeholder="🔍 Search Sort No..." onkeyup="render()" style="margin: 10px 0;">
+    <button class="btn-slip" onclick="makeSlip()">Generate Packing Slip</button>
 
-    <div id="hist" class="section">
-        <table>
-            <thead><tr><th>Roll</th><th>Client</th><th>Meters</th><th>Action</th></tr></thead>
-            <tbody id="histBody"></tbody>
-        </table>
-    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Sel</th>
+                <th>Roll No</th>
+                <th>Sort No</th>
+                <th>Mtrs</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="invBody">
+            <tr><td colspan="5" style="text-align:center;">⌛ Loading...</td></tr>
+        </tbody>
+    </table>
 </div>
 
 <div id="slipTemplate">
@@ -107,91 +80,106 @@
 </div>
 
 <script>
-    const URL = "https://script.google.com/macros/s/AKfycbw8Y2uijH6tB20zaYm-eMtWJeKss9enISZl9OrDrU6nOBH3FN9GdDiSf0vRp1WQYe-Itw/exec";
-    let db = { inventory: [], orders: [] };
+    // PASTE YOUR GOOGLE SCRIPT URL HERE
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxMjy9YM1dLviDdGCD32LonMIUP95eeRao45wTSICjlb6BaW3LuAzsoNsnhz05eexhyg/exec"; 
+    
+    let db = { inventory: [] };
 
-    async function load() {
-        const r = await fetch(URL);
-        db = await r.json();
-        render();
-    }
-
-    function showTab(id, el) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        el.classList.add('active');
+    async function loadData() {
+        try {
+            const response = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
+            db = await response.json();
+            render();
+        } catch (e) {
+            console.error("Load failed:", e);
+            document.getElementById('invBody').innerHTML = "<tr><td colspan='5' style='color:red;'>Connection Error</td></tr>";
+        }
     }
 
     async function saveInv() {
-        const p = { action: "addInventory", rollNo: val('rNo'), sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), shade: val('shade') };
-        await fetch(URL, { method: 'POST', body: JSON.stringify(p) });
-        clear(['rNo','sNo','mtr','width','nWt','gWt','shade']);
-        load();
-    }
-
-    async function saveOrd() {
-        const p = { action: "addOrder", client: val('oClient'), sort: val('oSort'), mtrs: val('oMtr'), rate: val('oRate') };
-        await fetch(URL, { method: 'POST', body: JSON.stringify(p) });
-        clear(['oClient','oSort','oMtr','oRate']);
-        load();
+        const payload = { 
+            action: "addInventory", 
+            rollNo: document.getElementById('rNo').value, 
+            sortNo: document.getElementById('sNo').value, 
+            meters: document.getElementById('mtr').value, 
+            width: document.getElementById('width').value, 
+            netWeight: document.getElementById('nWt').value, 
+            grossWeight: document.getElementById('gWt').value, 
+            grade: document.getElementById('grade').value, 
+            shade: document.getElementById('shade').value 
+        };
+        
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+        location.reload(); // Refresh to see new data
     }
 
     function render() {
-        const query = val('invSearch').toLowerCase();
+        const query = document.getElementById('invSearch').value.toLowerCase();
+        const body = document.getElementById('invBody');
+        const stats = document.getElementById('invStats');
         
-        // Stock Table & Stats
-        const ib = document.getElementById('invBody'); ib.innerHTML = "";
-        let s = {};
-        db.inventory.filter(i => i.status === 'Available' && i.sortNo.toLowerCase().includes(query)).forEach(i => {
-            ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}</td><td>${i.shade}</td></tr>`;
-            s[i.sortNo] = (s[i.sortNo] || 0) + parseFloat(i.meters);
-        });
-        const st = document.getElementById('invStats'); st.innerHTML = "";
-        for(let k in s) st.innerHTML += `<div class="stat-box"><b>${k}:</b> ${s[k].toFixed(2)}m</div>`;
+        body.innerHTML = "";
+        stats.innerHTML = "";
+        
+        let totals = {};
 
-        // Orders Table
-        const ob = document.getElementById('ordBody'); ob.innerHTML = "";
-        db.orders.forEach(o => {
-            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>₹${o.total}</td><td>${o.status}</td></tr>`;
-        });
+        if (db.inventory) {
+            db.inventory.forEach(item => {
+                // Calculation Logic
+                if (item.status === 'Available') {
+                    totals[item.sortNo] = (totals[item.sortNo] || 0) + parseFloat(item.meters);
+                }
 
-        // History Table
-        const hb = document.getElementById('histBody'); hb.innerHTML = "";
-        db.inventory.filter(i => i.status === 'Sold').forEach(i => {
-            hb.innerHTML += `<tr class="sold-row"><td>${i.rollNo}</td><td>${i.client}</td><td>${i.meters}</td><td><button onclick="ret('${i.rollNo}')" style="padding:4px; font-size:10px; background:red;">Return</button></td></tr>`;
-        });
-    }
+                // Filter & Display Logic
+                if (item.sortNo.toString().toLowerCase().includes(query)) {
+                    body.innerHTML += `
+                        <tr>
+                            <td><input type="checkbox" class="cb" data-r="${item.rollNo}"></td>
+                            <td>${item.rollNo}</td>
+                            <td>${item.sortNo}</td>
+                            <td>${item.meters}</td>
+                            <td>${item.status}</td>
+                        </tr>`;
+                }
+            });
+        }
 
-    async function ret(r) {
-        await fetch(URL, { method: 'POST', body: JSON.stringify({action:"return", rollNo:r}) });
-        load();
+        // Render Stats
+        for (let sort in totals) {
+            stats.innerHTML += `<div class="stat-box"><b>${sort}:</b> ${totals[sort].toFixed(2)}m</div>`;
+        }
     }
 
     async function makeSlip() {
-        const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
-        const cli = prompt("Client Name?");
-        if(!cli || !sel.length) return;
-        const items = db.inventory.filter(i => sel.includes(i.rollNo.toString()));
-        document.getElementById('slipInfo').innerText = `Client: ${cli} | Date: ${new Date().toLocaleDateString()}`;
-        let h = ""; let t = 0;
-        items.forEach(i => {
-            h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}</td><td>${i.netWeight}</td><td>${i.grossWeight}</td></tr>`;
-            t += parseFloat(i.meters);
-        });
-        document.getElementById('slipItems').innerHTML = h;
-        document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
+        const selected = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
+        const client = prompt("Enter Client Name:");
+        if (!client || !selected.length) return;
 
-        html2canvas(document.getElementById('slipTemplate')).then(async c => {
-            const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
-            await fetch(URL, { method: 'POST', body: JSON.stringify({action:"allot", clientName:cli, rollNos:sel}) });
-            load();
+        const items = db.inventory.filter(i => selected.includes(i.rollNo.toString()));
+        document.getElementById('slipInfo').innerText = `Client: ${client} | Date: ${new Date().toLocaleDateString()}`;
+        
+        let html = ""; let totalMtrs = 0;
+        items.forEach(i => {
+            html += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.meters}</td><td>${i.netWeight}</td><td>${i.grossWeight}</td></tr>`;
+            totalMtrs += parseFloat(i.meters);
+        });
+        
+        document.getElementById('slipItems').innerHTML = html;
+        document.getElementById('slipTotal').innerText = `Total: ${totalMtrs.toFixed(2)} Meters`;
+
+        html2canvas(document.getElementById('slipTemplate')).then(async canvas => {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL();
+            link.download = `PackingSlip_${client}.png`;
+            link.click();
+            
+            // Mark as Sold in Google Sheet
+            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:selected}) });
+            loadData();
         });
     }
 
-    const val = (id) => document.getElementById(id).value;
-    const clear = (ids) => ids.forEach(id => document.getElementById(id).value = "");
-    window.onload = load;
+    window.onload = loadData;
 </script>
 </body>
 </html>
