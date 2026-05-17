@@ -25,6 +25,7 @@
         .search-box { margin-bottom: 15px; display: flex; gap: 5px; }
         .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; }
         .btn-revert { background: #dc3545; }
+        .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
     </style>
 </head>
@@ -57,14 +58,15 @@
                 <input type="text" id="grade" placeholder="Grade">
                 <input type="text" id="shade" placeholder="Shade">
             </div>
-            <button style="background:var(--primary)" onclick="saveInv()">Add to Stock</button>
+            <button id="submitInvBtn" style="background:var(--primary)" onclick="saveInv()">Add to Stock</button>
+            <button id="cancelEditBtn" style="background:#6c757d; display:none; margin-top:5px;" onclick="clearEditMode()">Cancel Edit</button>
         </div>
         
         <div id="selectedTotal" class="live-counter">Selected: 0.00 Meters (0 Rolls)</div>
         <button style="background:var(--accent); margin-top: 2px;" onclick="makeSlip()">Generate Packing Slip</button>
         
         <table>
-            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th></tr></thead>
+            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th><th>Action</th></tr></thead>
             <tbody id="invBody"></tbody>
         </table>
     </div>
@@ -76,7 +78,7 @@
 
     <div id="slipView" class="section">
         <h3>Archive</h3>
-        <table><thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Action</th></tr></thead><tbody id="slipListBody"></tbody></table>
+        <table><thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Status</th><th>Action</th></tr></thead><tbody id="slipListBody"></tbody></table>
     </div>
 
     <div id="hist" class="section">
@@ -91,7 +93,8 @@
     <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
         <thead>
             <tr style="background:#f2f2f2;">
-                <th>Sr. No.</th> <th>Roll No</th>
+                <th>Sr. No.</th>
+                <th>Roll No</th>
                 <th>Sort No</th>
                 <th>Grade</th>
                 <th>Meters</th>
@@ -105,8 +108,9 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6wsgpjfJsXPvE8io10MGarcYutTPzBgSvKdRM77blpW_0cDIBkuFxgmaRLT1a8nA8Eg/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwocLLTcDOrSANBC-jIsX3dqV3LG3r_4HvOp1TMF48hJcZTIshk5jqERWyzWBSXQ39Dig/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
+    let isEditMode = false;
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -138,7 +142,11 @@
                 sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
 
                 if (s.toLowerCase().includes(filter)) {
-                    ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
+                    ib.innerHTML += `<tr>
+                        <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
+                        <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
+                        <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
+                    </tr>`;
                 }
             } else {
                 hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
@@ -149,7 +157,6 @@
             sm.innerHTML += `<div class="summary-card"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
 
-        // RENDER ORDER STATUS DROPDOWN SELECTION MECHANISM
         db.orders.forEach(o => {
             const stats = ["Pending", "Ready", "Completed"];
             let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
@@ -157,17 +164,27 @@
         });
 
         db.slips.reverse().forEach(s => {
-            slb.innerHTML += `<tr><td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td><button class="btn-small" onclick="rebuildSlip('${s.id}')">Download</button></td></tr>`;
+            let isCanceled = s.status === 'Canceled';
+            let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
+            let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel Slip</button>`;
+            
+            slb.innerHTML += `<tr>
+                <td>${s.date}</td>
+                <td>${s.client}</td>
+                <td>${s.transport}</td>
+                <td style="${statusStyle}">${s.status}</td>
+                <td>
+                    <button class="btn-small" onclick="rebuildSlip('${s.id}')">Download</button>
+                    ${cancelAction}
+                </td>
+            </tr>`;
         });
 
         updateSelectedTotal();
     }
 
-    // REAL TIME CHECKBOX MONITORING
     document.getElementById('invBody').addEventListener('change', function(e) {
-        if (e.target.classList.contains('cb')) {
-            updateSelectedTotal();
-        }
+        if (e.target.classList.contains('cb')) { updateSelectedTotal(); }
     });
 
     function updateSelectedTotal() {
@@ -181,25 +198,65 @@
         document.getElementById('selectedTotal').innerText = `Selected: ${totalMeters.toFixed(2)} Meters (${checkboxes.length} Rolls)`;
     }
 
+    function editRollForm(rNo) {
+        const item = db.inventory.find(i => i.rollNo.toString() === rNo.toString());
+        if(!item) return;
+        document.getElementById('rNo').value = item.rollNo;
+        document.getElementById('rNo').disabled = true; 
+        document.getElementById('sNo').value = item.sortNo;
+        document.getElementById('mtr').value = item.meters;
+        document.getElementById('width').value = item.width;
+        document.getElementById('nWt').value = item.netWeight;
+        document.getElementById('gWt').value = item.grossWeight;
+        document.getElementById('grade').value = item.grade;
+        document.getElementById('shade').value = item.shade || '';
+        
+        isEditMode = true;
+        document.getElementById('submitInvBtn').innerText = "Update Stock";
+        document.getElementById('submitInvBtn').style.background = "#28a745";
+        document.getElementById('cancelEditBtn').style.display = "block";
+    }
+
+    function clearEditMode() {
+        document.getElementById('rNo').value = '';
+        document.getElementById('rNo').disabled = false;
+        document.getElementById('sNo').value = '';
+        document.getElementById('mtr').value = '';
+        document.getElementById('width').value = '';
+        document.getElementById('nWt').value = '';
+        document.getElementById('gWt').value = '';
+        document.getElementById('grade').value = '';
+        document.getElementById('shade').value = '';
+        
+        isEditMode = false;
+        document.getElementById('submitInvBtn').innerText = "Add to Stock";
+        document.getElementById('submitInvBtn').style.background = "var(--primary)";
+        document.getElementById('cancelEditBtn').style.display = "none";
+    }
+
     async function saveInv() {
         const rollInput = val('rNo').trim();
         if(!rollInput) return alert("Roll No is required!");
 
-        // Client-side instant Duplicate Check
-        const match = db.inventory.some(i => i.rollNo.toString().trim().toLowerCase() === rollInput.toLowerCase());
-        if(match) return alert("Error: Roll Number '" + rollInput + "' already exists in stock!");
+        if (!isEditMode) {
+            const match = db.inventory.some(i => i.rollNo.toString().trim().toLowerCase() === rollInput.toLowerCase());
+            if(match) return alert("Error: Roll Number '" + rollInput + "' already exists!");
+        }
 
-        const p = { action: "addInventory", rollNo: rollInput, sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), grade: val('grade'), shade: val('shade') };
+        const p = { 
+            action: isEditMode ? "editInventory" : "addInventory", 
+            rollNo: rollInput, sortNo: val('sNo'), meters: val('mtr'), 
+            width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), 
+            grade: val('grade'), shade: val('shade') 
+        };
+        
         const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
         const text = await res.text();
         
         if(text === "Duplicate Roll No") {
-            alert("Submission Denied: Server reports duplicate Roll Number.");
+            alert("Submission Denied: Duplicate validation failure.");
         } else {
-            document.getElementById('rNo').value = '';
-            document.getElementById('mtr').value = '';
-            document.getElementById('nWt').value = '';
-            document.getElementById('gWt').value = '';
+            clearEditMode();
         }
         loadData();
     }
@@ -215,6 +272,12 @@
         loadData();
     }
 
+    async function cancelSlip(sid) {
+        if(!confirm("Are you sure you want to cancel this slip? All attached rolls will return to stock.")) return;
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"cancelSlip", slipId:sid}) });
+        loadData();
+    }
+
     function rebuildSlip(sid) {
         const s = db.slips.find(x => x.id == sid);
         buildImage(s.client, s.transport, s.date, s.rolls.split(","));
@@ -227,7 +290,6 @@
         document.getElementById('slipDate').innerText = date;
         let h = ""; let t = 0;
         
-        // APPLIED TRACKING SERIAL NUMBERS (Sr. No.)
         items.forEach((i, idx) => {
             h += `<tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
             t += parseFloat(i.meters);
