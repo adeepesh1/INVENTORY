@@ -16,7 +16,7 @@
         .section.active { display: block; }
         .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; }
+        input, select { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; }
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
@@ -25,6 +25,7 @@
         .search-box { margin-bottom: 15px; display: flex; gap: 5px; }
         .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; }
         .btn-revert { background: #dc3545; }
+        .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -59,7 +60,8 @@
             <button style="background:var(--primary)" onclick="saveInv()">Add to Stock</button>
         </div>
         
-        <button style="background:var(--accent)" onclick="makeSlip()">Generate Packing Slip</button>
+        <div id="selectedTotal" class="live-counter">Selected: 0.00 Meters (0 Rolls)</div>
+        <button style="background:var(--accent); margin-top: 2px;" onclick="makeSlip()">Generate Packing Slip</button>
         
         <table>
             <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th></tr></thead>
@@ -86,12 +88,24 @@
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
     <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
     <div style="font-size: 18px; margin-bottom: 20px;"><p><b>Client:</b> <span id="slipClient"></span></p><p><b>Transport:</b> <span id="slipTransport"></span></p><p><b>Date:</b> <span id="slipDate"></span></p></div>
-    <table border="1" style="width:100%; border-collapse:collapse; text-align: center;"><thead><tr style="background:#f2f2f2;"><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th></tr></thead><tbody id="slipItems"></tbody></table>
+    <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
+        <thead>
+            <tr style="background:#f2f2f2;">
+                <th>Sr. No.</th> <th>Roll No</th>
+                <th>Sort No</th>
+                <th>Grade</th>
+                <th>Meters</th>
+                <th>Width</th>
+                <th>Net Wt</th>
+            </tr>
+        </thead>
+        <tbody id="slipItems"></tbody>
+    </table>
     <h2 id="slipTotal" style="text-align:right; margin-top:25px;"></h2>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxuGBighiBfgGw1hIBICY_czsOgRxzro-7qzj1ZQLJdGRUCgEcF3ehLHy6CVSi5u4XkgA/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6wsgpjfJsXPvE8io10MGarcYutTPzBgSvKdRM77blpW_0cDIBkuFxgmaRLT1a8nA8Eg/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
 
     function showTab(id, el) {
@@ -120,11 +134,9 @@
 
         db.inventory.forEach(i => {
             if (i.status === 'Available') {
-                // Summary Logic (All available stock)
                 let s = i.sortNo || "N/A";
                 sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
 
-                // Table Filtering
                 if (s.toLowerCase().includes(filter)) {
                     ib.innerHTML += `<tr><td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
                 }
@@ -133,23 +145,62 @@
             }
         });
 
-        // Show Totals Cards
         for (let s in sortTotals) {
             sm.innerHTML += `<div class="summary-card"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
 
+        // RENDER ORDER STATUS DROPDOWN SELECTION MECHANISM
         db.orders.forEach(o => {
-            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td>${o.status}</td></tr>`;
+            const stats = ["Pending", "Ready", "Completed"];
+            let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
+            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`;
         });
 
         db.slips.reverse().forEach(s => {
             slb.innerHTML += `<tr><td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td><button class="btn-small" onclick="rebuildSlip('${s.id}')">Download</button></td></tr>`;
         });
+
+        updateSelectedTotal();
+    }
+
+    // REAL TIME CHECKBOX MONITORING
+    document.getElementById('invBody').addEventListener('change', function(e) {
+        if (e.target.classList.contains('cb')) {
+            updateSelectedTotal();
+        }
+    });
+
+    function updateSelectedTotal() {
+        const checkboxes = document.querySelectorAll('.cb:checked');
+        let totalMeters = 0;
+        checkboxes.forEach(cb => {
+            const r = cb.dataset.r;
+            const item = db.inventory.find(i => i.rollNo.toString() === r.toString());
+            if (item) totalMeters += parseFloat(item.meters || 0);
+        });
+        document.getElementById('selectedTotal').innerText = `Selected: ${totalMeters.toFixed(2)} Meters (${checkboxes.length} Rolls)`;
     }
 
     async function saveInv() {
-        const p = { action: "addInventory", rollNo: val('rNo'), sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), grade: val('grade'), shade: val('shade') };
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
+        const rollInput = val('rNo').trim();
+        if(!rollInput) return alert("Roll No is required!");
+
+        // Client-side instant Duplicate Check
+        const match = db.inventory.some(i => i.rollNo.toString().trim().toLowerCase() === rollInput.toLowerCase());
+        if(match) return alert("Error: Roll Number '" + rollInput + "' already exists in stock!");
+
+        const p = { action: "addInventory", rollNo: rollInput, sortNo: val('sNo'), meters: val('mtr'), width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), grade: val('grade'), shade: val('shade') };
+        const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
+        const text = await res.text();
+        
+        if(text === "Duplicate Roll No") {
+            alert("Submission Denied: Server reports duplicate Roll Number.");
+        } else {
+            document.getElementById('rNo').value = '';
+            document.getElementById('mtr').value = '';
+            document.getElementById('nWt').value = '';
+            document.getElementById('gWt').value = '';
+        }
         loadData();
     }
 
@@ -175,8 +226,10 @@
         document.getElementById('slipTransport').innerText = trans;
         document.getElementById('slipDate').innerText = date;
         let h = ""; let t = 0;
-        items.forEach(i => {
-            h += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
+        
+        // APPLIED TRACKING SERIAL NUMBERS (Sr. No.)
+        items.forEach((i, idx) => {
+            h += `<tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
             t += parseFloat(i.meters);
         });
         document.getElementById('slipItems').innerHTML = h;
@@ -196,6 +249,10 @@
         const p = { action: "addOrder", client: val('oClient'), sort: val('oSort'), mtrs: val('oMtr'), rate: val('oRate') };
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
         loadData();
+    }
+
+    async function updateOrd(id, s) {
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"updateOrderStatus", orderId:id, newStatus:s}) });
     }
 
     const val = (id) => document.getElementById(id).value;
