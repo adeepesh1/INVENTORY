@@ -82,8 +82,13 @@
     </div>
 
     <div id="hist" class="section">
-        <h3>Sold</h3>
-        <table><thead><tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Action</th></tr></thead><tbody id="histBody"></tbody></table>
+        <h3>Sold Rolls</h3>
+        <table>
+            <thead>
+                <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Sold To</th><th>Action</th></tr>
+            </thead>
+            <tbody id="histBody"></tbody>
+        </table>
     </div>
 </div>
 
@@ -108,7 +113,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwocLLTcDOrSANBC-jIsX3dqV3LG3r_4HvOp1TMF48hJcZTIshk5jqERWyzWBSXQ39Dig/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpEifWZfRtgYtgPX8qggqKOmKap93TADU_pyBAcgtXuMfWFT7EHQURQ6ZklfKpTGyOiQ/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
 
@@ -149,7 +154,8 @@
                     </tr>`;
                 }
             } else {
-                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
+                // Displays "Sold To" client details directly in app history layout
+                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
             }
         });
 
