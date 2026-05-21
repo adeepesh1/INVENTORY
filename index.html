@@ -32,7 +32,8 @@
 <body>
 
 <div class="nav">
-    <div class="tab active" onclick="showTab('inv', this)">📦 Stock</div>
+    <div class="tab active" onclick="switchLoc('Main', this)">📦 Stock</div>
+    <div class="tab" onclick="switchLoc('Nandan', this)">🏢 Nandan</div>
     <div class="tab" onclick="showTab('ord', this)">📑 Orders</div>
     <div class="tab" onclick="showTab('slipView', this)">📜 Slips</div>
     <div class="tab" onclick="showTab('hist', this)">🕒 History</div>
@@ -85,7 +86,7 @@
         <h3>Sold Rolls</h3>
         <table>
             <thead>
-                <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Meters</th><th>Sold To</th><th>Action</th></tr>
+                <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Sold To</th><th>Loc.</th><th>Action</th></tr>
             </thead>
             <tbody id="histBody"></tbody>
         </table>
@@ -113,15 +114,24 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpEifWZfRtgYtgPX8qggqKOmKap93TADU_pyBAcgtXuMfWFT7EHQURQ6ZklfKpTGyOiQ/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxRMBhR9ANUVckZwqV0LNo08K0E_jjjaW_-3qsWvRWYL0lRYcyDtI7F_B8b23_rAHQRhg/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
+    let currentLocation = 'Main'; // Default tracking location variable
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         el.classList.add('active');
+    }
+
+    // Handles the UI split between the Main and Nandan tabs dynamically
+    function switchLoc(loc, el) {
+        if (isEditMode) clearEditMode(); 
+        currentLocation = loc;
+        showTab('inv', el);
+        render();
     }
 
     async function loadData() {
@@ -143,19 +153,22 @@
 
         db.inventory.forEach(i => {
             if (i.status === 'Available') {
-                let s = i.sortNo || "N/A";
-                sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
+                // Renders ONLY the items associated with the tab you clicked
+                if (i.location === currentLocation) {
+                    let s = i.sortNo || "N/A";
+                    sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
 
-                if (s.toLowerCase().includes(filter)) {
-                    ib.innerHTML += `<tr>
-                        <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
-                        <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
-                        <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
-                    </tr>`;
+                    if (s.toLowerCase().includes(filter)) {
+                        ib.innerHTML += `<tr>
+                            <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
+                            <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
+                            <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
+                        </tr>`;
+                    }
                 }
             } else {
-                // Displays "Sold To" client details directly in app history layout
-                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
+                // Adds Location info to the History display
+                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
             }
         });
 
@@ -249,11 +262,13 @@
             if(match) return alert("Error: Roll Number '" + rollInput + "' already exists!");
         }
 
+        // Location data dynamically pulls from the tab currently being viewed
         const p = { 
             action: isEditMode ? "editInventory" : "addInventory", 
             rollNo: rollInput, sortNo: val('sNo'), meters: val('mtr'), 
             width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), 
-            grade: val('grade'), shade: val('shade') 
+            grade: val('grade'), shade: val('shade'),
+            location: currentLocation 
         };
         
         const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
