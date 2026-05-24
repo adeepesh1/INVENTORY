@@ -21,7 +21,8 @@
         table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
         .summary-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
-        .summary-card { background: #fff; padding: 10px; border-radius: 8px; border-left: 5px solid var(--primary); min-width: 100px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .summary-card { background: #fff; padding: 10px; border-radius: 8px; border-left: 5px solid var(--primary); min-width: 100px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s; }
+        .summary-card:hover { background: #f1f3f4; }
         .search-box { margin-bottom: 15px; display: flex; gap: 5px; }
         .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; }
         .btn-revert { background: #dc3545; }
@@ -117,7 +118,7 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNsoi5IsdFLWwAdCS5GkG59TfPUw7c2EpwOVMvdkPAPnWUr6tfT5FTvnBfss3DpKwmVQ/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
-    let currentLocation = 'Main'; // Default tracking location variable
+    let currentLocation = 'Main'; 
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -126,7 +127,6 @@
         el.classList.add('active');
     }
 
-    // Handles the UI split between the Main and Nandan tabs dynamically
     function switchLoc(loc, el) {
         if (isEditMode) clearEditMode(); 
         currentLocation = loc;
@@ -153,7 +153,6 @@
 
         db.inventory.forEach(i => {
             if (i.status === 'Available') {
-                // Renders ONLY the items associated with the tab you clicked
                 if (i.location === currentLocation) {
                     let s = i.sortNo || "N/A";
                     sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
@@ -161,19 +160,21 @@
                     if (s.toLowerCase().includes(filter)) {
                         ib.innerHTML += `<tr>
                             <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
-                            <td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
+                            <td>${i.rollNo}</td>
+                            <td style="cursor:pointer; color:var(--primary); font-weight:bold;" onclick="document.getElementById('sortSearch').value='${i.sortNo}'; render();" title="Click to filter by Sort ${i.sortNo}">${i.sortNo}</td>
+                            <td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
                             <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
                         </tr>`;
                     }
                 }
             } else {
-                // Adds Location info to the History display
                 hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
             }
         });
 
+        // Added onclick handler to make summary cards act as a fast filter
         for (let s in sortTotals) {
-            sm.innerHTML += `<div class="summary-card"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
+            sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('sortSearch').value='${s}'; render();" title="Click to filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
 
         db.orders.forEach(o => {
@@ -262,7 +263,6 @@
             if(match) return alert("Error: Roll Number '" + rollInput + "' already exists!");
         }
 
-        // Location data dynamically pulls from the tab currently being viewed
         const p = { 
             action: isEditMode ? "editInventory" : "addInventory", 
             rollNo: rollInput, sortNo: val('sNo'), meters: val('mtr'), 
