@@ -80,7 +80,7 @@
 
     <div id="slipView" class="section">
         <h3>Archive</h3>
-        <table><thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Status</th><th>Action</th></tr></thead><tbody id="slipListBody"></tbody></table>
+        <table><thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Invoice</th><th>Status</th><th>Action</th></tr></thead><tbody id="slipListBody"></tbody></table>
     </div>
 
     <div id="hist" class="section">
@@ -96,7 +96,12 @@
 
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
     <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
-    <div style="font-size: 18px; margin-bottom: 20px;"><p><b>Client:</b> <span id="slipClient"></span></p><p><b>Transport:</b> <span id="slipTransport"></span></p><p><b>Date:</b> <span id="slipDate"></span></p></div>
+    <div style="font-size: 18px; margin-bottom: 20px;">
+        <p><b>Client:</b> <span id="slipClient"></span></p>
+        <p><b>Transport:</b> <span id="slipTransport"></span></p>
+        <p><b>Date:</b> <span id="slipDate"></span></p>
+        <p id="slipInvoiceLine" style="display:none; color:var(--primary);"><b>Invoice No:</b> <span id="slipInvoice"></span></p>
+    </div>
     <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
         <thead>
             <tr style="background:#f2f2f2;">
@@ -115,7 +120,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwyT-l3KYYKsq-LQCo3oxQ8--cfwS703I152wy9e4pqrr2PbE0U7UA6eCLainDitoeYkQ/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpoiNrV5GM_nJoaEcfwE8kNzCDv93BAFhuiI50B49KdUdsrh8utP1jVhbpTxsYCKDWPQ/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
@@ -161,7 +166,7 @@
                         ib.innerHTML += `<tr>
                             <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
                             <td>${i.rollNo}</td>
-                            <td style="cursor:pointer; color:var(--primary); font-weight:bold;" onclick="document.getElementById('sortSearch').value='${i.sortNo}'; render();" title="Click to filter by Sort ${i.sortNo}">${i.sortNo}</td>
+                            <td><button class="btn-small" style="background: #e8f0fe; color: var(--primary);" onclick="document.getElementById('sortSearch').value='${i.sortNo}'; render();" title="Filter by Sort">${i.sortNo}</button></td>
                             <td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
                             <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
                         </tr>`;
@@ -172,7 +177,6 @@
             }
         });
 
-        // Added onclick handler to make summary cards act as a fast filter
         for (let s in sortTotals) {
             sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('sortSearch').value='${s}'; render();" title="Click to filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
@@ -186,15 +190,19 @@
         db.slips.reverse().forEach(s => {
             let isCanceled = s.status === 'Canceled';
             let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
-            let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel Slip</button>`;
+            let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
+            
+            let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : 
+                                 (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
             
             slb.innerHTML += `<tr>
                 <td>${s.date}</td>
                 <td>${s.client}</td>
                 <td>${s.transport}</td>
+                <td>${invoiceDisplay}</td>
                 <td style="${statusStyle}">${s.status}</td>
                 <td>
-                    <button class="btn-small" onclick="rebuildSlip('${s.id}')">Download</button>
+                    <button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>
                     ${cancelAction}
                 </td>
             </tr>`;
@@ -219,7 +227,7 @@
     }
 
     function editRollForm(rNo) {
-        const item = db.inventory.find(i => i.rollNo.toString() === rNo.toString());
+        const item = db.inventory.find(i => String(i.rollNo) === String(rNo));
         if(!item) return;
         document.getElementById('rNo').value = item.rollNo;
         document.getElementById('rNo').disabled = true; 
@@ -259,7 +267,7 @@
         if(!rollInput) return alert("Roll No is required!");
 
         if (!isEditMode) {
-            const match = db.inventory.some(i => i.rollNo.toString().trim().toLowerCase() === rollInput.toLowerCase());
+            const match = db.inventory.some(i => String(i.rollNo).trim().toLowerCase() === rollInput.toLowerCase());
             if(match) return alert("Error: Roll Number '" + rollInput + "' already exists!");
         }
 
@@ -288,8 +296,22 @@
         const cli = prompt("Client Name?");
         const trans = prompt("Transport Name?");
         if (!cli || !trans) return;
+        
+        // Fixed: Build Image immediately before fetch block to bypass Browser Security restrictions
+        buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
+        
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) });
-        buildImage(cli, trans, new Date().toLocaleDateString(), sel);
+        loadData();
+    }
+
+    async function addInvoice(sid) {
+        const inv = prompt("Enter Invoice Number:");
+        if (!inv || inv.trim() === "") return;
+        
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({action: "addInvoice", slipId: sid, invoice: inv}) 
+        });
         loadData();
     }
 
@@ -300,15 +322,24 @@
     }
 
     function rebuildSlip(sid) {
-        const s = db.slips.find(x => x.id == sid);
-        buildImage(s.client, s.transport, s.date, s.rolls.split(","));
+        // Fixed: Ensure string parsing so `.split` isn't called on numeric arrays
+        const s = db.slips.find(x => String(x.id) === String(sid));
+        if(s) buildImage(s.client, s.transport, s.date, String(s.rolls).split(","), s.invoice);
     }
 
-    function buildImage(cli, trans, date, rollNos) {
-        const items = db.inventory.filter(i => rollNos.includes(i.rollNo.toString()));
+    function buildImage(cli, trans, date, rollNos, invoiceNum = "") {
+        const items = db.inventory.filter(i => rollNos.includes(String(i.rollNo)));
         document.getElementById('slipClient').innerText = cli;
         document.getElementById('slipTransport').innerText = trans;
         document.getElementById('slipDate').innerText = date;
+        
+        if (invoiceNum) {
+            document.getElementById('slipInvoiceLine').style.display = 'block';
+            document.getElementById('slipInvoice').innerText = invoiceNum;
+        } else {
+            document.getElementById('slipInvoiceLine').style.display = 'none';
+        }
+
         let h = ""; let t = 0;
         
         items.forEach((i, idx) => {
@@ -317,6 +348,7 @@
         });
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
+        
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
         });
