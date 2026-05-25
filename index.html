@@ -328,7 +328,15 @@
     }
 
     function buildImage(cli, trans, date, rollNos, invoiceNum = "") {
-        const items = db.inventory.filter(i => rollNos.includes(String(i.rollNo)));
+        // Clean up the target roll numbers: remove spaces, remove formatting quotes, convert to uppercase strings
+        const cleanTargetRolls = rollNos.map(r => String(r).replace(/['"\s]/g, "").trim().toUpperCase());
+        
+        // Filter inventory by normalizing stock roll numbers the exact same way
+        const items = db.inventory.filter(i => {
+            const cleanStockRoll = String(i.rollNo).replace(/['"\s]/g, "").trim().toUpperCase();
+            return cleanTargetRolls.includes(cleanStockRoll);
+        });
+
         document.getElementById('slipClient').innerText = cli;
         document.getElementById('slipTransport').innerText = trans;
         document.getElementById('slipDate').innerText = date;
@@ -342,13 +350,23 @@
 
         let h = ""; let t = 0;
         
-        items.forEach((i, idx) => {
-            h += `<tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
-            t += parseFloat(i.meters);
-        });
+        // If items are found, populate the table
+        if (items.length > 0) {
+            items.forEach((i, idx) => {
+                h += `<tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
+                t += parseFloat(i.meters || 0);
+            });
+        } else {
+            // Fallback: If inventory matches fail, list the roll numbers directly so the slip isn't blank
+            cleanTargetRolls.forEach((r, idx) => {
+                h += `<tr><td>${idx + 1}</td><td>${r}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
+            });
+        }
+
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
         
+        // Render and download the image
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
         });
