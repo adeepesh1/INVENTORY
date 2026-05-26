@@ -120,7 +120,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrlcOKxrO47Rnphsh7gWvxhoiyjXq3MjrIsbtGtOn06P9e5MuR8sZLwkK7NM7FcNujBg/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGQL6xVj53EZMzHgt9VnIQNz9Om8UxVFhW997NIivg8Se15uLdG3FU1dBqoF_XNfz0dQ/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
@@ -297,7 +297,6 @@
         const trans = prompt("Transport Name?");
         if (!cli || !trans) return;
         
-        // Fixed: Build Image immediately before fetch block to bypass Browser Security restrictions
         buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
         
         await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) });
@@ -322,16 +321,17 @@
     }
 
     function rebuildSlip(sid) {
-        // Fixed: Ensure string parsing so `.split` isn't called on numeric arrays
         const s = db.slips.find(x => String(x.id) === String(sid));
-        if(s) buildImage(s.client, s.transport, s.date, String(s.rolls).split(","), s.invoice);
+        if(s) {
+            // Strip any leftover sheet formatting before triggering Image Builder
+            const arrayRolls = String(s.rolls).replace(/['"\s]/g, "").split(",");
+            buildImage(s.client, s.transport, s.date, arrayRolls, s.invoice);
+        }
     }
 
     function buildImage(cli, trans, date, rollNos, invoiceNum = "") {
-        // Clean up the target roll numbers: remove spaces, remove formatting quotes, convert to uppercase strings
         const cleanTargetRolls = rollNos.map(r => String(r).replace(/['"\s]/g, "").trim().toUpperCase());
         
-        // Filter inventory by normalizing stock roll numbers the exact same way
         const items = db.inventory.filter(i => {
             const cleanStockRoll = String(i.rollNo).replace(/['"\s]/g, "").trim().toUpperCase();
             return cleanTargetRolls.includes(cleanStockRoll);
@@ -350,14 +350,12 @@
 
         let h = ""; let t = 0;
         
-        // If items are found, populate the table
         if (items.length > 0) {
             items.forEach((i, idx) => {
                 h += `<tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
                 t += parseFloat(i.meters || 0);
             });
         } else {
-            // Fallback: If inventory matches fail, list the roll numbers directly so the slip isn't blank
             cleanTargetRolls.forEach((r, idx) => {
                 h += `<tr><td>${idx + 1}</td><td>${r}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
             });
@@ -366,7 +364,6 @@
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
         
-        // Render and download the image
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
         });
