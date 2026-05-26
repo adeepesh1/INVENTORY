@@ -120,7 +120,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrlcOKxrO47Rnphsh7gWvxhoiyjXq3MjrIsbtGtOn06P9e5MuR8sZLwkK7NM7FcNujBg/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw8ycG3mrFQeynkQzexFeFablDLLKLVyUPtpxLs5_DJ3XUO_FeXkrWqE1QI4TIg7Ux5cA/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
@@ -290,20 +290,27 @@
         loadData();
     }
 
-    async function makeSlip() {
-        const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
-        if (!sel.length) return alert("Select rolls!");
-        const cli = prompt("Client Name?");
-        const trans = prompt("Transport Name?");
-        if (!cli || !trans) return;
-        
-        // Fixed: Build Image immediately before fetch block to bypass Browser Security restrictions
-        buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
-        
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) });
-        loadData();
+    else if (data.action === "allot") {
+    var rows = invSheet.getDataRange().getValues();
+    // Force target rolls to strict lowercase strings for bulletproof matching
+    var rollNos = data.rollNos.map(function(r) { return String(r).trim().toLowerCase(); });
+    var clientName = data.client || "N/A";
+    var transportName = data.transport || "N/A";
+    
+    for (var i = 1; i < rows.length; i++) {
+      // Force inventory rolls to strict lowercase strings
+      var sheetRoll = String(rows[i][0]).trim().toLowerCase();
+      
+      if (rollNos.indexOf(sheetRoll) !== -1) {
+        invSheet.getRange(i + 1, 9).setValue("Sold");
+        invSheet.getRange(i + 1, 10).setValue(clientName);
+      }
     }
-
+    
+    // Append to Slips sheet with the hidden text-enforcer quote (')
+    slipSheet.appendRow([Date.now().toString(), new Date().toLocaleDateString(), clientName, transportName, "'" + data.rollNos.join(","), "Active"]);
+  }
+    
     async function addInvoice(sid) {
         const inv = prompt("Enter Invoice Number:");
         if (!inv || inv.trim() === "") return;
