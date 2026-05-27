@@ -294,21 +294,36 @@
         loadData();
     }
 
-    async function makeSlip() {
+        async function makeSlip() {
         const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
         if (!sel.length) return alert("Select rolls!");
         const cli = prompt("Client Name?");
         const trans = prompt("Transport Name?");
         if (!cli || !trans) return;
         
-        buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
+        // Visual cue that it's working so you don't click twice
+        const statusDisplay = document.getElementById('selectedTotal');
+        const originalText = statusDisplay.innerText;
+        statusDisplay.innerText = "Saving to database... Please wait.";
         
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
-        });
-        loadData();
+        try {
+            // 1. Send to Google FIRST before the phone can pause the app
+            await fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
+            });
+            
+            // 2. Generate the Image ONLY AFTER the data is safely saved
+            buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
+            
+            // 3. Reload the frontend data
+            loadData();
+        } catch (error) {
+            console.error("Fetch error:", error);
+            alert("Error sending data to Google Sheets. Check the console.");
+            statusDisplay.innerText = originalText;
+        }
     }
 
     async function addInvoice(sid) {
