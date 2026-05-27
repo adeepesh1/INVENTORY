@@ -120,7 +120,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwvRsJseUhjjyqhdtm4mDEI-BIM3NjT7jY5ICQCwHnrYUnCoD9V_GdRfwCbvsYNhCxYDg/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCgnCgxymHtZJHiyvIFTIh_aoL7EX6cjXv65qWW7L6d6NckvaUBjg9m_YE6AtVNFp4DA/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
@@ -279,7 +279,11 @@
             location: currentLocation 
         };
         
-        const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
+        const res = await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(p) 
+        });
         const text = await res.text();
         
         if(text === "Duplicate Roll No") {
@@ -299,7 +303,11 @@
         
         buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
         
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
+        });
         loadData();
     }
 
@@ -309,6 +317,7 @@
         
         await fetch(SCRIPT_URL, { 
             method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({action: "addInvoice", slipId: sid, invoice: inv}) 
         });
         loadData();
@@ -316,14 +325,17 @@
 
     async function cancelSlip(sid) {
         if(!confirm("Are you sure you want to cancel this slip? All attached rolls will return to stock.")) return;
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"cancelSlip", slipId:sid}) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({action:"cancelSlip", slipId:sid}) 
+        });
         loadData();
     }
 
     function rebuildSlip(sid) {
         const s = db.slips.find(x => String(x.id) === String(sid));
         if(s) {
-            // Strip any leftover sheet formatting before triggering Image Builder
             const arrayRolls = String(s.rolls).replace(/['"\s]/g, "").split(",");
             buildImage(s.client, s.transport, s.date, arrayRolls, s.invoice);
         }
@@ -371,18 +383,30 @@
 
     async function revert(r) {
         if(!confirm("Revert Roll " + r + "?")) return;
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"revertRoll", rollNo:r}) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({action:"revertRoll", rollNo:r}) 
+        });
         loadData();
     }
 
     async function saveOrd() {
         const p = { action: "addOrder", client: val('oClient'), sort: val('oSort'), mtrs: val('oMtr'), rate: val('oRate') };
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(p) 
+        });
         loadData();
     }
 
     async function updateOrd(id, s) {
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"updateOrderStatus", orderId:id, newStatus:s}) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({action:"updateOrderStatus", orderId:id, newStatus:s}) 
+        });
     }
 
     const val = (id) => document.getElementById(id).value;
