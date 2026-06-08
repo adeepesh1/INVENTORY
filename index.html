@@ -310,6 +310,7 @@
         document.getElementById('cancelEditBtn').style.display = "none";
     }
 
+    // FIX: Re-added explicit Content-Type headers to prevent strict Safari CORS blocking
     async function saveInv() {
         const rollInput = val('rNo').trim();
         if(!rollInput) return alert("Roll No is required!");
@@ -326,11 +327,16 @@
             grade: val('grade'), shade: val('shade'), location: currentLocation 
         };
         
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+            body: JSON.stringify(p) 
+        });
         clearEditMode();
         loadData();
     }
 
+    // FIX: Send data to Google FIRST, then build the image, so mobile phones don't pause the network request
     async function makeSlip() {
         const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
         if (!sel.length) return alert("Select rolls!");
@@ -342,10 +348,17 @@
         const originalText = statusDisplay.innerText;
         statusDisplay.innerText = "Saving to database... Please wait.";
         
-        buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
-
         try {
-            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) });
+            // 1. Tell Google Sheets to update first
+            await fetch(SCRIPT_URL, { 
+                method: 'POST', 
+                headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+                body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
+            });
+            
+            // 2. Generate the PDF after it's safely saved
+            buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
+            
             loadData();
         } catch (error) {
             console.error("Fetch error:", error);
@@ -358,13 +371,21 @@
         const inv = prompt("Enter Invoice Number:");
         if (!inv || inv.trim() === "") return;
         
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action: "addInvoice", slipId: sid, invoice: inv}) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+            body: JSON.stringify({action: "addInvoice", slipId: sid, invoice: inv}) 
+        });
         loadData();
     }
 
     async function cancelSlip(sid) {
         if(!confirm("Are you sure you want to cancel this slip? All attached rolls will return to stock.")) return;
-        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"cancelSlip", slipId:sid}) });
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+            body: JSON.stringify({action:"cancelSlip", slipId:sid}) 
+        });
         loadData();
     }
 
@@ -412,6 +433,16 @@
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
         });
+    }
+
+    async function revert(r) {
+        if(!confirm("Revert Roll " + r + "?")) return;
+        await fetch(SCRIPT_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+            body: JSON.stringify({action:"revertRoll", rollNo:r}) 
+        });
+        loadData();
     }
 
     const val = (id) => document.getElementById(id).value;
