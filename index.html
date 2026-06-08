@@ -43,7 +43,7 @@
 <div class="content">
     <div id="inv" class="section active">
         <div class="search-box">
-            <input type="text" id="sortSearch" placeholder="Search Sort No..." onkeyup="render()">
+            <input type="text" id="sortSearch" placeholder="Search Roll, Sort, or Grade..." onkeyup="render()">
             <button style="width: 80px; margin:0; background:#666" onclick="document.getElementById('sortSearch').value=''; render();">Clear</button>
         </div>
         
@@ -160,9 +160,13 @@
             if (i.status === 'Available') {
                 if (i.location === currentLocation) {
                     let s = i.sortNo || "N/A";
+                    let r = i.rollNo || "";
+                    let g = i.grade || "";
+                    
                     sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
 
-                    if (s.toLowerCase().includes(filter)) {
+                    // Allow searching by Sort No, Roll No, OR Grade
+                    if (s.toLowerCase().includes(filter) || String(r).toLowerCase().includes(filter) || String(g).toLowerCase().includes(filter)) {
                         ib.innerHTML += `<tr>
                             <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
                             <td>${i.rollNo}</td>
