@@ -28,8 +28,8 @@
         .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
         
-        /* Styles for the Column Filters */
-        .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        /* Reverted Text Filter Inputs Row Styles */
+        .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
         .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
     </style>
 </head>
@@ -45,7 +45,6 @@
 
 <div class="content">
     <div id="inv" class="section active">
-        
         <div id="sortSummary" class="summary-container"></div>
 
         <div class="card">
@@ -71,9 +70,9 @@
                 <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th><th>Action</th></tr>
                 <tr class="filter-row">
                     <td></td>
-                    <td><input type="text" id="fInvRoll" onkeyup="render()" placeholder="Filter..."></td>
-                    <td><input type="text" id="fInvSort" onkeyup="render()" placeholder="Filter..."></td>
-                    <td><input type="text" id="fInvGrade" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fInvRoll" oninput="render()" placeholder="Filter Roll..."></td>
+                    <td><input type="text" id="fInvSort" oninput="render()" placeholder="Filter Sort..."></td>
+                    <td><input type="text" id="fInvGrade" oninput="render()" placeholder="Filter Grade..."></td>
                     <td></td><td></td><td></td><td></td>
                 </tr>
             </thead>
@@ -90,11 +89,11 @@
             <thead>
                 <tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr>
                 <tr class="filter-row">
-                    <td><input type="text" id="fOrdId" onkeyup="render()" placeholder="Filter..."></td>
-                    <td><input type="text" id="fOrdClient" onkeyup="render()" placeholder="Filter..."></td>
-                    <td><input type="text" id="fOrdSort" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fOrdId" oninput="render()" placeholder="ID..."></td>
+                    <td><input type="text" id="fOrdClient" oninput="render()" placeholder="Client..."></td>
+                    <td><input type="text" id="fOrdSort" oninput="render()" placeholder="Sort..."></td>
                     <td></td><td></td>
-                    <td><input type="text" id="fOrdStatus" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fOrdStatus" oninput="render()" placeholder="Status..."></td>
                 </tr>
             </thead>
             <tbody id="ordBody"></tbody>
@@ -108,10 +107,10 @@
                 <tr><th>Date</th><th>Client</th><th>Transport</th><th>Invoice</th><th>Status</th><th>Action</th></tr>
                 <tr class="filter-row">
                     <td></td>
-                    <td><input type="text" id="fSlipClient" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fSlipClient" oninput="render()" placeholder="Client..."></td>
                     <td></td>
-                    <td><input type="text" id="fSlipInv" onkeyup="render()" placeholder="Filter..."></td>
-                    <td><input type="text" id="fSlipStatus" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fSlipInv" oninput="render()" placeholder="Invoice..."></td>
+                    <td><input type="text" id="fSlipStatus" oninput="render()" placeholder="Status..."></td>
                     <td></td>
                 </tr>
             </thead>
@@ -125,11 +124,11 @@
             <thead>
                 <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Sold To</th><th>Loc.</th><th>Action</th></tr>
                 <tr class="filter-row">
-                    <td><input type="text" id="fHistRoll" onkeyup="render()" placeholder="Filter..."></td>
-                    <td><input type="text" id="fHistSort" onkeyup="render()" placeholder="Filter..."></td>
-                    <td><input type="text" id="fHistGrade" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fHistRoll" oninput="render()" placeholder="Roll..."></td>
+                    <td><input type="text" id="fHistSort" oninput="render()" placeholder="Sort..."></td>
+                    <td><input type="text" id="fHistGrade" oninput="render()" placeholder="Grade..."></td>
                     <td></td>
-                    <td><input type="text" id="fHistClient" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fHistClient" oninput="render()" placeholder="Client..."></td>
                     <td></td><td></td>
                 </tr>
             </thead>
@@ -149,13 +148,7 @@
     <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
         <thead>
             <tr style="background:#f2f2f2;">
-                <th>Sr. No.</th>
-                <th>Roll No</th>
-                <th>Sort No</th>
-                <th>Grade</th>
-                <th>Meters</th>
-                <th>Width</th>
-                <th>Net Wt</th>
+                <th>Sr. No.</th><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th>
             </tr>
         </thead>
         <tbody id="slipItems"></tbody>
@@ -164,8 +157,8 @@
 </div>
 
 <script>
-    // Make sure this matches your deployed script URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3MPlSL4_-b_uqqiv-mLQNzp77yLAnrrU3GV6nRyVnMKVuXXaR4ex_MvJwTnemFo8/execc"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcSweNFYUvGfdwvBYJQ2b1Giz1hvoUKlxJUJWzN4256c4jPO6aIAjOBV9csmHgRHutyA/exec"; 
+    
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
@@ -190,9 +183,22 @@
     }
 
     async function loadData() {
-        const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
-        db = await res.json();
-        render();
+        try {
+            const statusDisplay = document.getElementById('selectedTotal');
+            if(statusDisplay) statusDisplay.innerText = "Loading system data...";
+            
+            const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
+            db = await res.json();
+            
+            if (!db.inventory) db.inventory = [];
+            if (!db.orders) db.orders = [];
+            if (!db.slips) db.slips = [];
+            
+            render();
+        } catch (error) {
+            console.error("Fetch failure:", error);
+            alert("Could not pull data from Google Sheets. Check your script deployment link.");
+        }
     }
 
     function render() {
@@ -202,52 +208,45 @@
         const slb = document.getElementById('slipListBody');
         const sm = document.getElementById('sortSummary');
         
-        // Helper to safely get filter values
-        const safeVal = (id) => {
+        const textVal = (id) => {
             const el = document.getElementById(id);
-            return el ? el.value.toLowerCase() : '';
+            return el ? el.value.trim().toLowerCase() : '';
         };
 
-        // Inventory Column Filters
-        const fInvRoll = safeVal('fInvRoll');
-        const fInvSort = safeVal('fInvSort');
-        const fInvGrade = safeVal('fInvGrade');
+        const fInvRoll = textVal('fInvRoll');
+        const fInvSort = textVal('fInvSort');
+        const fInvGrade = textVal('fInvGrade');
 
-        // History Column Filters
-        const fHistRoll = safeVal('fHistRoll');
-        const fHistSort = safeVal('fHistSort');
-        const fHistGrade = safeVal('fHistGrade');
-        const fHistClient = safeVal('fHistClient');
+        const fHistRoll = textVal('fHistRoll');
+        const fHistSort = textVal('fHistSort');
+        const fHistGrade = textVal('fHistGrade');
+        const fHistClient = textVal('fHistClient');
 
-        // Order Column Filters
-        const fOrdId = safeVal('fOrdId');
-        const fOrdClient = safeVal('fOrdClient');
-        const fOrdSort = safeVal('fOrdSort');
-        const fOrdStatus = safeVal('fOrdStatus');
+        const fOrdId = textVal('fOrdId');
+        const fOrdClient = textVal('fOrdClient');
+        const fOrdSort = textVal('fOrdSort');
+        const fOrdStatus = textVal('fOrdStatus');
 
-        // Slip Column Filters
-        const fSlipClient = safeVal('fSlipClient');
-        const fSlipInv = safeVal('fSlipInv');
-        const fSlipStatus = safeVal('fSlipStatus');
+        const fSlipClient = textVal('fSlipClient');
+        const fSlipInv = textVal('fSlipInv');
+        const fSlipStatus = textVal('fSlipStatus');
         
         ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = ""; 
-        sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all column filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
+        sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all text filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
         
         let sortTotals = {};
 
         db.inventory.forEach(i => {
-            let s = i.sortNo || "N/A";
-            let r = i.rollNo || "";
-            let g = i.grade || "";
+            let s = String(i.sortNo || "N/A");
+            let r = String(i.rollNo || "");
+            let g = String(i.grade || "");
 
             if (i.status === 'Available') {
                 if (i.location === currentLocation) {
-                    
-                    // Column filter matching
                     let matchCol = true;
-                    if (fInvRoll && !String(r).toLowerCase().includes(fInvRoll)) matchCol = false;
+                    if (fInvRoll && !r.toLowerCase().includes(fInvRoll)) matchCol = false;
                     if (fInvSort && !s.toLowerCase().includes(fInvSort)) matchCol = false;
-                    if (fInvGrade && !String(g).toLowerCase().includes(fInvGrade)) matchCol = false;
+                    if (fInvGrade && !g.toLowerCase().includes(fInvGrade)) matchCol = false;
 
                     if (matchCol) {
                         sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
@@ -262,12 +261,12 @@
                     }
                 }
             } else {
-                // History (Sold Rolls) filter matching
                 let matchHist = true;
-                if (fHistRoll && !String(r).toLowerCase().includes(fHistRoll)) matchHist = false;
+                let c = String(i.soldTo || "").toLowerCase();
+                if (fHistRoll && !r.toLowerCase().includes(fHistRoll)) matchHist = false;
                 if (fHistSort && !s.toLowerCase().includes(fHistSort)) matchHist = false;
-                if (fHistGrade && !String(g).toLowerCase().includes(fHistGrade)) matchHist = false;
-                if (fHistClient && !String(i.soldTo).toLowerCase().includes(fHistClient)) matchHist = false;
+                if (fHistGrade && !g.toLowerCase().includes(fHistGrade)) matchHist = false;
+                if (fHistClient && !c.includes(fHistClient)) matchHist = false;
 
                 if (matchHist) {
                     hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
@@ -276,15 +275,20 @@
         });
 
         for (let s in sortTotals) {
-            sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('fInvSort').value='${s}'; render();" title="Click to filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
+            sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('fInvSort').value='${s}'; render();" title="Filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
 
         db.orders.forEach(o => {
+            let idStr = String(o.id || "").toLowerCase();
+            let cStr = String(o.client || "").toLowerCase();
+            let sStr = String(o.sort || "").toLowerCase();
+            let stStr = String(o.status || "").toLowerCase();
+
             let matchOrd = true;
-            if (fOrdId && !String(o.id).toLowerCase().includes(fOrdId)) matchOrd = false;
-            if (fOrdClient && !String(o.client).toLowerCase().includes(fOrdClient)) matchOrd = false;
-            if (fOrdSort && !String(o.sort).toLowerCase().includes(fOrdSort)) matchOrd = false;
-            if (fOrdStatus && !String(o.status).toLowerCase().includes(fOrdStatus)) matchOrd = false;
+            if (fOrdId && !idStr.includes(fOrdId)) matchOrd = false;
+            if (fOrdClient && !cStr.includes(fOrdClient)) matchOrd = false;
+            if (fOrdSort && !sStr.includes(fOrdSort)) matchOrd = false;
+            if (fOrdStatus && !stStr.includes(fOrdStatus)) matchOrd = false;
 
             if (matchOrd) {
                 const stats = ["Pending", "Ready", "Completed"];
@@ -293,30 +297,26 @@
             }
         });
 
-        db.slips.reverse().forEach(s => {
+        [...db.slips].reverse().forEach(s => {
+            let cStr = String(s.client || "").toLowerCase();
+            let iStr = String(s.invoice || "").toLowerCase();
+            let stStr = String(s.status || "").toLowerCase();
+
             let matchSlip = true;
-            if (fSlipClient && !String(s.client).toLowerCase().includes(fSlipClient)) matchSlip = false;
-            if (fSlipInv && !String(s.invoice).toLowerCase().includes(fSlipInv)) matchSlip = false;
-            if (fSlipStatus && !String(s.status).toLowerCase().includes(fSlipStatus)) matchSlip = false;
+            if (fSlipClient && !cStr.includes(fSlipClient)) matchSlip = false;
+            if (fSlipInv && !iStr.includes(fSlipInv)) matchSlip = false;
+            if (fSlipStatus && !stStr.includes(fSlipStatus)) matchSlip = false;
 
             if (matchSlip) {
                 let isCanceled = s.status === 'Canceled';
                 let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
                 let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
-                
-                let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : 
-                                     (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
+                let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
                 
                 slb.innerHTML += `<tr>
-                    <td>${s.date}</td>
-                    <td>${s.client}</td>
-                    <td>${s.transport}</td>
-                    <td>${invoiceDisplay}</td>
+                    <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
                     <td style="${statusStyle}">${s.status}</td>
-                    <td>
-                        <button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>
-                        ${cancelAction}
-                    </td>
+                    <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${cancelAction}</td>
                 </tr>`;
             }
         });
@@ -336,7 +336,8 @@
             const item = db.inventory.find(i => i.rollNo.toString() === r.toString());
             if (item) totalMeters += parseFloat(item.meters || 0);
         });
-        document.getElementById('selectedTotal').innerText = `Selected: ${totalMeters.toFixed(2)} Meters (${checkboxes.length} Rolls)`;
+        const counterEl = document.getElementById('selectedTotal');
+        if (counterEl) counterEl.innerText = `Selected: ${totalMeters.toFixed(2)} Meters (${checkboxes.length} Rolls)`;
     }
 
     function editRollForm(rNo) {
@@ -388,22 +389,15 @@
             action: isEditMode ? "editInventory" : "addInventory", 
             rollNo: rollInput, sortNo: val('sNo'), meters: val('mtr'), 
             width: val('width'), netWeight: val('nWt'), grossWeight: val('gWt'), 
-            grade: val('grade'), shade: val('shade'),
-            location: currentLocation 
+            grade: val('grade'), shade: val('shade'), location: currentLocation 
         };
         
-        const res = await fetch(SCRIPT_URL, { 
+        await fetch(SCRIPT_URL, { 
             method: 'POST', 
             headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify(p) 
         });
-        const text = await res.text();
-        
-        if(text === "Duplicate Roll No") {
-            alert("Submission Denied: Duplicate validation failure.");
-        } else {
-            clearEditMode();
-        }
+        clearEditMode();
         loadData();
     }
 
@@ -414,23 +408,16 @@
         const trans = prompt("Transport Name?");
         if (!cli || !trans) return;
         
-        const statusDisplay = document.getElementById('selectedTotal');
-        const originalText = statusDisplay.innerText;
-        statusDisplay.innerText = "Saving to database... Please wait.";
-        
         try {
             await fetch(SCRIPT_URL, { 
                 method: 'POST', 
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
                 body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
             });
-            
             buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
             loadData();
         } catch (error) {
-            console.error("Fetch error:", error);
-            alert("Error sending data to Google Sheets. Check the console.");
-            statusDisplay.innerText = originalText;
+            alert("Error saving packing slip configuration data.");
         }
     }
 
@@ -466,7 +453,6 @@
 
     function buildImage(cli, trans, date, rollNos, invoiceNum = "") {
         const cleanTargetRolls = rollNos.map(r => String(r).replace(/['"\s]/g, "").trim().toUpperCase());
-        
         const items = db.inventory.filter(i => {
             const cleanStockRoll = String(i.rollNo).replace(/['"\s]/g, "").trim().toUpperCase();
             return cleanTargetRolls.includes(cleanStockRoll);
@@ -484,7 +470,6 @@
         }
 
         let h = ""; let t = 0;
-        
         if (items.length > 0) {
             items.forEach((i, idx) => {
                 h += `<tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
