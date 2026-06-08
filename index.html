@@ -28,9 +28,9 @@
         .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
         
-        /* Reverted Text Filter Inputs Row Styles */
         .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
         .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
+        .limit-msg { text-align: center; color: #888; font-style: italic; background: #fdfdfd; }
     </style>
 </head>
 <body>
@@ -68,11 +68,12 @@
         <table>
             <thead>
                 <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th><th>Action</th></tr>
+                <!-- USING debouncedRender() for high performance -->
                 <tr class="filter-row">
                     <td></td>
-                    <td><input type="text" id="fInvRoll" oninput="render()" placeholder="Filter Roll..."></td>
-                    <td><input type="text" id="fInvSort" oninput="render()" placeholder="Filter Sort..."></td>
-                    <td><input type="text" id="fInvGrade" oninput="render()" placeholder="Filter Grade..."></td>
+                    <td><input type="text" id="fInvRoll" oninput="debouncedRender()" placeholder="Filter Roll..."></td>
+                    <td><input type="text" id="fInvSort" oninput="debouncedRender()" placeholder="Filter Sort..."></td>
+                    <td><input type="text" id="fInvGrade" oninput="debouncedRender()" placeholder="Filter Grade..."></td>
                     <td></td><td></td><td></td><td></td>
                 </tr>
             </thead>
@@ -89,11 +90,11 @@
             <thead>
                 <tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr>
                 <tr class="filter-row">
-                    <td><input type="text" id="fOrdId" oninput="render()" placeholder="ID..."></td>
-                    <td><input type="text" id="fOrdClient" oninput="render()" placeholder="Client..."></td>
-                    <td><input type="text" id="fOrdSort" oninput="render()" placeholder="Sort..."></td>
+                    <td><input type="text" id="fOrdId" oninput="debouncedRender()" placeholder="ID..."></td>
+                    <td><input type="text" id="fOrdClient" oninput="debouncedRender()" placeholder="Client..."></td>
+                    <td><input type="text" id="fOrdSort" oninput="debouncedRender()" placeholder="Sort..."></td>
                     <td></td><td></td>
-                    <td><input type="text" id="fOrdStatus" oninput="render()" placeholder="Status..."></td>
+                    <td><input type="text" id="fOrdStatus" oninput="debouncedRender()" placeholder="Status..."></td>
                 </tr>
             </thead>
             <tbody id="ordBody"></tbody>
@@ -107,10 +108,10 @@
                 <tr><th>Date</th><th>Client</th><th>Transport</th><th>Invoice</th><th>Status</th><th>Action</th></tr>
                 <tr class="filter-row">
                     <td></td>
-                    <td><input type="text" id="fSlipClient" oninput="render()" placeholder="Client..."></td>
+                    <td><input type="text" id="fSlipClient" oninput="debouncedRender()" placeholder="Client..."></td>
                     <td></td>
-                    <td><input type="text" id="fSlipInv" oninput="render()" placeholder="Invoice..."></td>
-                    <td><input type="text" id="fSlipStatus" oninput="render()" placeholder="Status..."></td>
+                    <td><input type="text" id="fSlipInv" oninput="debouncedRender()" placeholder="Invoice..."></td>
+                    <td><input type="text" id="fSlipStatus" oninput="debouncedRender()" placeholder="Status..."></td>
                     <td></td>
                 </tr>
             </thead>
@@ -124,11 +125,11 @@
             <thead>
                 <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Sold To</th><th>Loc.</th><th>Action</th></tr>
                 <tr class="filter-row">
-                    <td><input type="text" id="fHistRoll" oninput="render()" placeholder="Roll..."></td>
-                    <td><input type="text" id="fHistSort" oninput="render()" placeholder="Sort..."></td>
-                    <td><input type="text" id="fHistGrade" oninput="render()" placeholder="Grade..."></td>
+                    <td><input type="text" id="fHistRoll" oninput="debouncedRender()" placeholder="Roll..."></td>
+                    <td><input type="text" id="fHistSort" oninput="debouncedRender()" placeholder="Sort..."></td>
+                    <td><input type="text" id="fHistGrade" oninput="debouncedRender()" placeholder="Grade..."></td>
                     <td></td>
-                    <td><input type="text" id="fHistClient" oninput="render()" placeholder="Client..."></td>
+                    <td><input type="text" id="fHistClient" oninput="debouncedRender()" placeholder="Client..."></td>
                     <td></td><td></td>
                 </tr>
             </thead>
@@ -157,11 +158,13 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcSweNFYUvGfdwvBYJQ2b1Giz1hvoUKlxJUJWzN4256c4jPO6aIAjOBV9csmHgRHutyA/exec"; 
+    // ⚠️ CRITICAL: Replace this URL with your actual Google Apps Script web app URL!
+    const SCRIPT_URL = "YOUR_GOOGLE_WEB_APP_URL_HERE"; 
     
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
+    let renderTimer; // Timer for debounce
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -180,6 +183,12 @@
     function clearAllFilters() {
         document.querySelectorAll('.filter-row input').forEach(inp => inp.value = '');
         render();
+    }
+
+    // Debounce function to stop browser freezing while typing
+    function debouncedRender() {
+        clearTimeout(renderTimer);
+        renderTimer = setTimeout(render, 250); 
     }
 
     async function loadData() {
@@ -231,10 +240,13 @@
         const fSlipInv = textVal('fSlipInv');
         const fSlipStatus = textVal('fSlipStatus');
         
-        ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = ""; 
         sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all text filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
         
+        // High Performance Arrays
+        let invHTML = [], histHTML = [], ordHTML = [], slipHTML = [];
+        let invCount = 0, histCount = 0, ordCount = 0, slipCount = 0;
         let sortTotals = {};
+        const LIMIT = 150; // Max rows to render at once to prevent hanging
 
         db.inventory.forEach(i => {
             let s = String(i.sortNo || "N/A");
@@ -251,13 +263,16 @@
                     if (matchCol) {
                         sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
 
-                        ib.innerHTML += `<tr>
-                            <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
-                            <td>${i.rollNo}</td>
-                            <td><button class="btn-small" style="background: #e8f0fe; color: var(--primary);" onclick="document.getElementById('fInvSort').value='${i.sortNo}'; render();" title="Filter by Sort">${i.sortNo}</button></td>
-                            <td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
-                            <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
-                        </tr>`;
+                        if (invCount < LIMIT) {
+                            invHTML.push(`<tr>
+                                <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
+                                <td>${i.rollNo}</td>
+                                <td><button class="btn-small" style="background: #e8f0fe; color: var(--primary);" onclick="document.getElementById('fInvSort').value='${i.sortNo}'; debouncedRender();" title="Filter by Sort">${i.sortNo}</button></td>
+                                <td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
+                                <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
+                            </tr>`);
+                        }
+                        invCount++;
                     }
                 }
             } else {
@@ -269,13 +284,16 @@
                 if (fHistClient && !c.includes(fHistClient)) matchHist = false;
 
                 if (matchHist) {
-                    hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
+                    if (histCount < LIMIT) {
+                        histHTML.push(`<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`);
+                    }
+                    histCount++;
                 }
             }
         });
 
         for (let s in sortTotals) {
-            sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('fInvSort').value='${s}'; render();" title="Filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
+            sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('fInvSort').value='${s}'; debouncedRender();" title="Filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
 
         db.orders.forEach(o => {
@@ -291,9 +309,12 @@
             if (fOrdStatus && !stStr.includes(fOrdStatus)) matchOrd = false;
 
             if (matchOrd) {
-                const stats = ["Pending", "Ready", "Completed"];
-                let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
-                ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`;
+                if (ordCount < LIMIT) {
+                    const stats = ["Pending", "Ready", "Completed"];
+                    let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
+                    ordHTML.push(`<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`);
+                }
+                ordCount++;
             }
         });
 
@@ -308,18 +329,27 @@
             if (fSlipStatus && !stStr.includes(fSlipStatus)) matchSlip = false;
 
             if (matchSlip) {
-                let isCanceled = s.status === 'Canceled';
-                let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
-                let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
-                let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
-                
-                slb.innerHTML += `<tr>
-                    <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
-                    <td style="${statusStyle}">${s.status}</td>
-                    <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${cancelAction}</td>
-                </tr>`;
+                if (slipCount < LIMIT) {
+                    let isCanceled = s.status === 'Canceled';
+                    let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
+                    let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
+                    let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
+                    
+                    slipHTML.push(`<tr>
+                        <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
+                        <td style="${statusStyle}">${s.status}</td>
+                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${cancelAction}</td>
+                    </tr>`);
+                }
+                slipCount++;
             }
         });
+
+        // Push buffered HTML to the DOM all at once (Fast)
+        ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? `<tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
+        hb.innerHTML = histHTML.join('') + (histCount > LIMIT ? `<tr><td colspan="7" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
+        ob.innerHTML = ordHTML.join('') + (ordCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
+        slb.innerHTML = slipHTML.join('') + (slipCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
 
         updateSelectedTotal();
     }
@@ -408,6 +438,10 @@
         const trans = prompt("Transport Name?");
         if (!cli || !trans) return;
         
+        const statusDisplay = document.getElementById('selectedTotal');
+        const originalText = statusDisplay.innerText;
+        statusDisplay.innerText = "Saving to database... Please wait.";
+
         try {
             await fetch(SCRIPT_URL, { 
                 method: 'POST', 
@@ -418,6 +452,7 @@
             loadData();
         } catch (error) {
             alert("Error saving packing slip configuration data.");
+            statusDisplay.innerText = originalText;
         }
     }
 
