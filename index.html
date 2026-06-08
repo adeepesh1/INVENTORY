@@ -119,7 +119,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRNGs-8zzhQJR3MmqQq2w7IROzoeZy08nymIHZ_8P2iSUVGmpMtyF5Z4zHzRgg4S4XDw/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeo6CYDh99DmRnIgomCJjswd9dq29PUCvFVVE_dlhXsp-wnE5hGzlFIE5EAUlvZhp52A/exec"; 
     
     let db = { inventory: [], slips: [] };
     let isEditMode = false;
@@ -150,12 +150,15 @@
         renderTimer = setTimeout(render, 250); 
     }
 
+    // MOBILE FIX: Plain fetch connection bypassing CORS preflight blocks
     async function loadData() {
         try {
             const statusDisplay = document.getElementById('selectedTotal');
             if(statusDisplay) statusDisplay.innerText = "Loading system data...";
             
             const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
+            if (!res.ok) throw new Error("Network issue");
+            
             db = await res.json();
             
             if (!db.inventory) db.inventory = [];
@@ -164,8 +167,16 @@
             render();
         } catch (error) {
             console.error("Fetch failure:", error);
-            alert("Could not pull data from Google Sheets. Check your script deployment link.");
+            alert("Could not pull data from Google Sheets. Ensure your deployment is set to 'Anyone'.");
         }
+    }
+
+    // MOBILE FIX: Plain body payload ensures mobile browsers don't block the POST
+    async function safePost(payload) {
+        return await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
     }
 
     function render() {
@@ -310,7 +321,6 @@
         document.getElementById('cancelEditBtn').style.display = "none";
     }
 
-    // FIX: Re-added explicit Content-Type headers to prevent strict Safari CORS blocking
     async function saveInv() {
         const rollInput = val('rNo').trim();
         if(!rollInput) return alert("Roll No is required!");
@@ -327,16 +337,11 @@
             grade: val('grade'), shade: val('shade'), location: currentLocation 
         };
         
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-            body: JSON.stringify(p) 
-        });
+        await safePost(p);
         clearEditMode();
         loadData();
     }
 
-    // FIX: Send data to Google FIRST, then build the image, so mobile phones don't pause the network request
     async function makeSlip() {
         const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
         if (!sel.length) return alert("Select rolls!");
@@ -347,21 +352,13 @@
         const statusDisplay = document.getElementById('selectedTotal');
         const originalText = statusDisplay.innerText;
         statusDisplay.innerText = "Saving to database... Please wait.";
-        
+
         try {
-            // 1. Tell Google Sheets to update first
-            await fetch(SCRIPT_URL, { 
-                method: 'POST', 
-                headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-                body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
-            });
-            
-            // 2. Generate the PDF after it's safely saved
+            await safePost({action:"allot", rollNos:sel, client:cli, transport:trans});
             buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
-            
             loadData();
         } catch (error) {
-            console.error("Fetch error:", error);
+            console.error("Post error:", error);
             alert("Error sending data to Google Sheets.");
             statusDisplay.innerText = originalText;
         }
@@ -371,28 +368,20 @@
         const inv = prompt("Enter Invoice Number:");
         if (!inv || inv.trim() === "") return;
         
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-            body: JSON.stringify({action: "addInvoice", slipId: sid, invoice: inv}) 
-        });
+        await safePost({action: "addInvoice", slipId: sid, invoice: inv});
         loadData();
     }
 
     async function cancelSlip(sid) {
         if(!confirm("Are you sure you want to cancel this slip? All attached rolls will return to stock.")) return;
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-            body: JSON.stringify({action:"cancelSlip", slipId:sid}) 
-        });
+        await safePost({action:"cancelSlip", slipId:sid});
         loadData();
     }
 
     function rebuildSlip(sid) {
         const s = db.slips.find(x => String(x.id) === String(sid));
         if(s) {
-            const arrayRolls = String(s.rolls).replace(/['"\s]/g, "").split(",");
+            const arrayRolls = String(s.rolls).split(",");
             buildImage(s.client, s.transport, s.date, arrayRolls, s.invoice);
         }
     }
@@ -433,16 +422,6 @@
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
         });
-    }
-
-    async function revert(r) {
-        if(!confirm("Revert Roll " + r + "?")) return;
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
-            body: JSON.stringify({action:"revertRoll", rollNo:r}) 
-        });
-        loadData();
     }
 
     const val = (id) => document.getElementById(id).value;
