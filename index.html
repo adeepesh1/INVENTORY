@@ -28,7 +28,7 @@
         .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
         
-        /* Updated styles for the Dropdown Filter Rows */
+        /* Dropdown Filter Rows Styles */
         .filter-row select { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
         .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
     </style>
@@ -45,7 +45,6 @@
 
 <div class="content">
     <div id="inv" class="section active">
-        
         <div id="sortSummary" class="summary-container"></div>
 
         <div class="card">
@@ -149,13 +148,7 @@
     <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
         <thead>
             <tr style="background:#f2f2f2;">
-                <th>Sr. No.</th>
-                <th>Roll No</th>
-                <th>Sort No</th>
-                <th>Grade</th>
-                <th>Meters</th>
-                <th>Width</th>
-                <th>Net Wt</th>
+                <th>Sr. No.</th><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th>
             </tr>
         </thead>
         <tbody id="slipItems"></tbody>
@@ -164,7 +157,9 @@
 </div>
 
 <script>
+    // ⚠️ CRITICAL: Replace this URL with your actual Google Apps Script web app URL!
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3MPlSL4_-b_uqqiv-mLQNzp77yLAnrrU3GV6nRyVnMKVuXXaR4ex_MvJwTnemFo8/exec"; 
+    
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
@@ -188,13 +183,10 @@
         render();
     }
 
-    // Helper function to build and update dropdown menus dynamically
     function populateDropdown(id, arrayValues, currentSelectedValue) {
         const el = document.getElementById(id);
         if (!el) return;
-        
-        // Filter out empty items, remove duplicates, and sort values cleanly
-        const uniqueValues = [...new Set(arrayValues)].filter(Boolean).sort();
+        const uniqueValues = [...new Set(arrayValues)].filter(val => val !== undefined && val !== null && val !== '').sort();
         
         let html = '<option value="">All</option>';
         uniqueValues.forEach(val => {
@@ -205,62 +197,66 @@
     }
 
     async function loadData() {
-        const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
-        db = await res.json();
-        render();
+        try {
+            const statusDisplay = document.getElementById('selectedTotal');
+            if(statusDisplay) statusDisplay.innerText = "Loading data from systems...";
+            
+            const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
+            if (!res.ok) throw new Error("Network status error: " + res.status);
+            
+            db = await res.json();
+            
+            // Fallback checking to prevent processing crashes if keys don't exist
+            if (!db.inventory) db.inventory = [];
+            if (!db.orders) db.orders = [];
+            if (!db.slips) db.slips = [];
+            
+            render();
+        } catch (error) {
+            console.error("Database connection failure:", error);
+            alert("⚠️ Critical App Failure: Could not load data.\n\n" +
+                  "Reason: " + error.message + "\n\n" +
+                  "Please ensure your SCRIPT_URL variable matches your active deployment URL exactly.");
+        }
     }
 
     function render() {
-        const ib = document.getElementById('invBody');
-        const hb = document.getElementById('histBody');
-        const ob = document.getElementById('ordBody');
-        const slb = document.getElementById('slipListBody');
-        const sm = document.getElementById('sortSummary');
-        
-        const safeVal = (id) => {
-            const el = document.getElementById(id);
-            return el ? el.value : '';
-        };
+        try {
+            const ib = document.getElementById('invBody');
+            const hb = document.getElementById('histBody');
+            const ob = document.getElementById('ordBody');
+            const slb = document.getElementById('slipListBody');
+            const sm = document.getElementById('sortSummary');
+            
+            const safeVal = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.value : '';
+            };
 
-        // Capture what is currently selected in dropdown filters
-        const fInvRoll = safeVal('fInvRoll');
-        const fInvSort = safeVal('fInvSort');
-        const fInvGrade = safeVal('fInvGrade');
+            const fInvRoll = safeVal('fInvRoll');
+            const fInvSort = safeVal('fInvSort');
+            const fInvGrade = safeVal('fInvGrade');
 
-        const fHistRoll = safeVal('fHistRoll');
-        const fHistSort = safeVal('fHistSort');
-        const fHistGrade = safeVal('fHistGrade');
-        const fHistClient = safeVal('fHistClient');
+            const fHistRoll = safeVal('fHistRoll');
+            const fHistSort = safeVal('fHistSort');
+            const fHistGrade = safeVal('fHistGrade');
+            const fHistClient = safeVal('fHistClient');
 
-        const fOrdId = safeVal('fOrdId');
-        const fOrdClient = safeVal('fOrdClient');
-        const fOrdSort = safeVal('fOrdSort');
-        const fOrdStatus = safeVal('fOrdStatus');
+            const fOrdId = safeVal('fOrdId');
+            const fOrdClient = safeVal('fOrdClient');
+            const fOrdSort = safeVal('fOrdSort');
+            const fOrdStatus = safeVal('fOrdStatus');
 
-        const fSlipClient = safeVal('fSlipClient');
-        const fSlipInv = safeVal('fSlipInv');
-        const fSlipStatus = safeVal('fSlipStatus');
-        
-        // Arrays to dynamically collect all available options from data scope
-        let listInvRoll = [], listInvSort = [], listInvGrade = [];
-        let listHistRoll = [], listHistSort = [], listHistGrade = [], listHistClient = [];
-        let listOrdId = [], listOrdClient = [], listOrdSort = [], listOrdStatus = [];
-        let listSlipClient = [], listSlipInv = [], listSlipStatus = [];
+            const fSlipClient = safeVal('fSlipClient');
+            const fSlipInv = safeVal('fSlipInv');
+            const fSlipStatus = safeVal('fSlipStatus');
+            
+            let listInvRoll = [], listInvSort = [], listInvGrade = [];
+            let listHistRoll = [], listHistSort = [], listHistGrade = [], listHistClient = [];
+            let listOrdId = [], listOrdClient = [], listOrdSort = [], listOrdStatus = [];
+            let listSlipClient = [], listSlipInv = [], listSlipStatus = [];
 
-        ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = ""; 
-        sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
-        
-        let sortTotals = {};
-
-        // 1. Process Inventory and History data arrays
-        db.inventory.forEach(i => {
-            let s = i.sortNo || "N/A";
-            let r = i.rollNo || "";
-            let g = i.grade || "";
-
-            if (i.status === 'Available') {
-                if (i.location === currentLocation) {
-                    // Gather all options for current location context
-                    listInvRoll.push(r); listInvSort.push(s); listInvGrade.push(g);
-
-                    let matchCol = true;
+            ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = ""; 
+            sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
+            
+            let sortTotals =
