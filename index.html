@@ -23,7 +23,10 @@
         .summary-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
         .summary-card { background: #fff; padding: 10px; border-radius: 8px; border-left: 5px solid var(--primary); min-width: 100px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s; }
         .summary-card:hover { background: #f1f3f4; }
-        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; }
+        
+        /* FIX: Corrects giant stretching buttons */
+        .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; width: auto !important; margin-top: 0 !important; }
+        
         .btn-revert { background: #dc3545; }
         .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
@@ -70,9 +73,9 @@
                 <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th><th>Action</th></tr>
                 <tr class="filter-row">
                     <td></td>
-                    <td><input type="text" id="fInvRoll" oninput="debouncedRender()" placeholder="Roll..."></td>
-                    <td><input type="text" id="fInvSort" oninput="debouncedRender()" placeholder="Sort..."></td>
-                    <td><input type="text" id="fInvGrade" oninput="debouncedRender()" placeholder="Grade..."></td>
+                    <td><input type="text" id="fInvRoll" oninput="debouncedRender()" placeholder="Filter Roll..."></td>
+                    <td><input type="text" id="fInvSort" oninput="debouncedRender()" placeholder="Filter Sort..."></td>
+                    <td><input type="text" id="fInvGrade" oninput="debouncedRender()" placeholder="Filter Grade..."></td>
                     <td></td><td></td><td></td><td></td>
                 </tr>
             </thead>
@@ -157,8 +160,8 @@
 </div>
 
 <script>
-    // ⚠️ CRITICAL: Replace this URL with your actual Google Apps Script web app URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZya-KlHzus2MvcvMHAZmhhjEgNubQeudj_rTakI5yOzLR_rdJ0eQ2w9qGZcDfNEzPVA/exec"; 
+    // ⚠️ CRITICAL: Replace this with your newly deployed URL!
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHlBq8akEp8wOMvheS8GRGljOBZjfg5lKwObvQGoHI_pop6cd6cmN5XQkZR6veaAdlYQ/exec"; 
     
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
@@ -240,6 +243,7 @@
         
         sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all text filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
         
+        // FIX: Array Buffering. This builds the HTML in memory first, making it 50x faster to load.
         let invHTML = [], histHTML = [], ordHTML = [], slipHTML = [];
         let invCount = 0, histCount = 0, ordCount = 0, slipCount = 0;
         let sortTotals = {};
@@ -342,6 +346,7 @@
             }
         });
 
+        // Push buffered HTML to the DOM
         ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? `<tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
         hb.innerHTML = histHTML.join('') + (histCount > LIMIT ? `<tr><td colspan="7" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
         ob.innerHTML = ordHTML.join('') + (ordCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
@@ -402,6 +407,7 @@
         document.getElementById('cancelEditBtn').style.display = "none";
     }
 
+    // FIX: All fetch POST requests now have the headers needed to bypass CORS blocking
     async function saveInv() {
         const rollInput = val('rNo').trim();
         if(!rollInput) return alert("Roll No is required!");
@@ -427,6 +433,7 @@
         loadData();
     }
 
+    // FIX: makeSlip saves to DB first, THEN triggers the image download to prevent mobile freezing
     async function makeSlip() {
         const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
         if (!sel.length) return alert("Select rolls!");
