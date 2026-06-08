@@ -37,7 +37,6 @@
         .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
         .limit-msg { text-align: center; color: #888; font-style: italic; background: #fdfdfd; }
 
-        /* Modal Styles */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .modal-box h3 { margin-top: 0; color: var(--primary); margin-bottom: 20px;}
@@ -117,7 +116,6 @@
 <div id="slipModal" class="modal-overlay">
     <div class="modal-box">
         <h3>Generate Packing Slip</h3>
-        
         <label>Select or Type Client:</label>
         <input type="text" id="modalClientInput" list="clientDatalist" placeholder="Click to choose or type new..." autocomplete="off">
         <datalist id="clientDatalist"></datalist>
@@ -152,7 +150,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzpNoJ8kxtARviI9U7gTsXyH7_K4ObQPQcvXwwTd7mBAw_kbaCV5FG4idl_pi2n1i7fA/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQZ1T3YUr0E8Inl9zMJRU9cgzSmSUIjRfK8KxVn7VpgCSfeFRW8m5xBmDjRScUAvzCCQ/exec"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -199,7 +197,6 @@
             if (!res.ok) throw new Error("Network issue");
             
             db = await res.json();
-            
             if (!db.inventory) db.inventory = [];
             if (!db.slips) db.slips = [];
             if (!db.clients) db.clients = [];
@@ -313,7 +310,6 @@
         updateSelectedTotal();
     }
 
-    // Populates the dropdown lists dynamically
     function buildDatalists() {
         document.getElementById('clientDatalist').innerHTML = db.clients.map(c => `<option value="${c}">`).join('');
         document.getElementById('transportDatalist').innerHTML = db.transporters.map(t => `<option value="${t}">`).join('');
@@ -408,7 +404,7 @@
 
     function closeSlipModal() {
         document.getElementById('slipModal').style.display = 'none';
-        pendingSlipRolls = [];
+        // BUG FIX: Do NOT clear pendingSlipRolls here! 
     }
 
     async function confirmSlipModal() {
@@ -417,7 +413,8 @@
         
         if (!cli || !trans) return alert("Client and Transport fields are required.");
         
-        closeSlipModal();
+        // Hide modal immediately but keep the array intact
+        document.getElementById('slipModal').style.display = 'none'; 
 
         const statusDisplay = document.getElementById('selectedTotal');
         const originalText = statusDisplay.innerText;
@@ -426,6 +423,7 @@
         try {
             await safePost({action:"allot", rollNos:pendingSlipRolls, client:cli, transport:trans});
             buildImage(cli, trans, new Date().toLocaleDateString(), pendingSlipRolls, "");
+            pendingSlipRolls = []; // Clear array ONLY after safely sending it
             loadData();
         } catch (error) {
             console.error("Post error:", error);
