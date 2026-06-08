@@ -28,6 +28,10 @@
         .btn-revert { background: #dc3545; }
         .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
+        
+        /* New Styles for the Column Filters */
+        .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
     </style>
 </head>
 <body>
@@ -43,7 +47,7 @@
 <div class="content">
     <div id="inv" class="section active">
         <div class="search-box">
-            <input type="text" id="sortSearch" placeholder="Search Roll, Sort, or Grade..." onkeyup="render()">
+            <input type="text" id="sortSearch" placeholder="Master Search: Roll, Sort, or Grade..." onkeyup="render()">
             <button style="width: 80px; margin:0; background:#666" onclick="document.getElementById('sortSearch').value=''; render();">Clear</button>
         </div>
         
@@ -68,19 +72,59 @@
         <button style="background:var(--accent); margin-top: 2px;" onclick="makeSlip()">Generate Packing Slip</button>
         
         <table>
-            <thead><tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th><th>Action</th></tr></thead>
+            <thead>
+                <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th><th>Action</th></tr>
+                <!-- Column Filters added here -->
+                <tr class="filter-row">
+                    <td></td>
+                    <td><input type="text" id="fInvRoll" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fInvSort" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fInvGrade" onkeyup="render()" placeholder="Filter..."></td>
+                    <td></td><td></td><td></td><td></td>
+                </tr>
+            </thead>
             <tbody id="invBody"></tbody>
         </table>
     </div>
 
     <div id="ord" class="section">
-        <div class="card"><div class="grid"><input type="text" id="oClient" placeholder="Client"><input type="text" id="oSort" placeholder="Sort"><input type="number" id="oMtr" placeholder="Mtrs"><input type="number" id="oRate" placeholder="Rate"></div><button style="background:#2ecc71" onclick="saveOrd()">Save Order</button></div>
-        <table><thead><tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr></thead><tbody id="ordBody"></tbody></table>
+        <div class="card">
+            <div class="grid"><input type="text" id="oClient" placeholder="Client"><input type="text" id="oSort" placeholder="Sort"><input type="number" id="oMtr" placeholder="Mtrs"><input type="number" id="oRate" placeholder="Rate"></div>
+            <button style="background:#2ecc71" onclick="saveOrd()">Save Order</button>
+        </div>
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr>
+                <!-- Column Filters added here -->
+                <tr class="filter-row">
+                    <td><input type="text" id="fOrdId" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fOrdClient" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fOrdSort" onkeyup="render()" placeholder="Filter..."></td>
+                    <td></td><td></td>
+                    <td><input type="text" id="fOrdStatus" onkeyup="render()" placeholder="Filter..."></td>
+                </tr>
+            </thead>
+            <tbody id="ordBody"></tbody>
+        </table>
     </div>
 
     <div id="slipView" class="section">
         <h3>Archive</h3>
-        <table><thead><tr><th>Date</th><th>Client</th><th>Transport</th><th>Invoice</th><th>Status</th><th>Action</th></tr></thead><tbody id="slipListBody"></tbody></table>
+        <table>
+            <thead>
+                <tr><th>Date</th><th>Client</th><th>Transport</th><th>Invoice</th><th>Status</th><th>Action</th></tr>
+                <!-- Column Filters added here -->
+                <tr class="filter-row">
+                    <td></td>
+                    <td><input type="text" id="fSlipClient" onkeyup="render()" placeholder="Filter..."></td>
+                    <td></td>
+                    <td><input type="text" id="fSlipInv" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fSlipStatus" onkeyup="render()" placeholder="Filter..."></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody id="slipListBody"></tbody>
+        </table>
     </div>
 
     <div id="hist" class="section">
@@ -88,6 +132,15 @@
         <table>
             <thead>
                 <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Sold To</th><th>Loc.</th><th>Action</th></tr>
+                <!-- Column Filters added here -->
+                <tr class="filter-row">
+                    <td><input type="text" id="fHistRoll" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fHistSort" onkeyup="render()" placeholder="Filter..."></td>
+                    <td><input type="text" id="fHistGrade" onkeyup="render()" placeholder="Filter..."></td>
+                    <td></td>
+                    <td><input type="text" id="fHistClient" onkeyup="render()" placeholder="Filter..."></td>
+                    <td></td><td></td>
+                </tr>
             </thead>
             <tbody id="histBody"></tbody>
         </table>
@@ -120,6 +173,7 @@
 </div>
 
 <script>
+    // Make sure this matches your deployed script URL!
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3MPlSL4_-b_uqqiv-mLQNzp77yLAnrrU3GV6nRyVnMKVuXXaR4ex_MvJwTnemFo8/exec"; 
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
@@ -151,22 +205,60 @@
         const ob = document.getElementById('ordBody');
         const slb = document.getElementById('slipListBody');
         const sm = document.getElementById('sortSummary');
+        
+        // Helper to safely get filter values
+        const safeVal = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.value.toLowerCase() : '';
+        };
+
         const filter = document.getElementById('sortSearch').value.toLowerCase();
+        
+        // Inventory Column Filters
+        const fInvRoll = safeVal('fInvRoll');
+        const fInvSort = safeVal('fInvSort');
+        const fInvGrade = safeVal('fInvGrade');
+
+        // History Column Filters
+        const fHistRoll = safeVal('fHistRoll');
+        const fHistSort = safeVal('fHistSort');
+        const fHistGrade = safeVal('fHistGrade');
+        const fHistClient = safeVal('fHistClient');
+
+        // Order Column Filters
+        const fOrdId = safeVal('fOrdId');
+        const fOrdClient = safeVal('fOrdClient');
+        const fOrdSort = safeVal('fOrdSort');
+        const fOrdStatus = safeVal('fOrdStatus');
+
+        // Slip Column Filters
+        const fSlipClient = safeVal('fSlipClient');
+        const fSlipInv = safeVal('fSlipInv');
+        const fSlipStatus = safeVal('fSlipStatus');
         
         ib.innerHTML = ""; hb.innerHTML = ""; ob.innerHTML = ""; slb.innerHTML = ""; sm.innerHTML = "";
         let sortTotals = {};
 
         db.inventory.forEach(i => {
+            let s = i.sortNo || "N/A";
+            let r = i.rollNo || "";
+            let g = i.grade || "";
+
             if (i.status === 'Available') {
                 if (i.location === currentLocation) {
-                    let s = i.sortNo || "N/A";
-                    let r = i.rollNo || "";
-                    let g = i.grade || "";
                     
-                    sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
+                    // Master filter matching
+                    let matchMaster = filter === "" || s.toLowerCase().includes(filter) || String(r).toLowerCase().includes(filter) || String(g).toLowerCase().includes(filter);
+                    
+                    // Column filter matching
+                    let matchCol = true;
+                    if (fInvRoll && !String(r).toLowerCase().includes(fInvRoll)) matchCol = false;
+                    if (fInvSort && !s.toLowerCase().includes(fInvSort)) matchCol = false;
+                    if (fInvGrade && !String(g).toLowerCase().includes(fInvGrade)) matchCol = false;
 
-                    // Allow searching by Sort No, Roll No, OR Grade
-                    if (s.toLowerCase().includes(filter) || String(r).toLowerCase().includes(filter) || String(g).toLowerCase().includes(filter)) {
+                    if (matchMaster && matchCol) {
+                        sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
+
                         ib.innerHTML += `<tr>
                             <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
                             <td>${i.rollNo}</td>
@@ -177,7 +269,16 @@
                     }
                 }
             } else {
-                hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
+                // History (Sold Rolls) filter matching
+                let matchHist = true;
+                if (fHistRoll && !String(r).toLowerCase().includes(fHistRoll)) matchHist = false;
+                if (fHistSort && !s.toLowerCase().includes(fHistSort)) matchHist = false;
+                if (fHistGrade && !String(g).toLowerCase().includes(fHistGrade)) matchHist = false;
+                if (fHistClient && !String(i.soldTo).toLowerCase().includes(fHistClient)) matchHist = false;
+
+                if (matchHist) {
+                    hb.innerHTML += `<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`;
+                }
             }
         });
 
@@ -186,30 +287,45 @@
         }
 
         db.orders.forEach(o => {
-            const stats = ["Pending", "Ready", "Completed"];
-            let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
-            ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`;
+            let matchOrd = true;
+            if (fOrdId && !String(o.id).toLowerCase().includes(fOrdId)) matchOrd = false;
+            if (fOrdClient && !String(o.client).toLowerCase().includes(fOrdClient)) matchOrd = false;
+            if (fOrdSort && !String(o.sort).toLowerCase().includes(fOrdSort)) matchOrd = false;
+            if (fOrdStatus && !String(o.status).toLowerCase().includes(fOrdStatus)) matchOrd = false;
+
+            if (matchOrd) {
+                const stats = ["Pending", "Ready", "Completed"];
+                let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
+                ob.innerHTML += `<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`;
+            }
         });
 
         db.slips.reverse().forEach(s => {
-            let isCanceled = s.status === 'Canceled';
-            let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
-            let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
-            
-            let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : 
-                                 (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
-            
-            slb.innerHTML += `<tr>
-                <td>${s.date}</td>
-                <td>${s.client}</td>
-                <td>${s.transport}</td>
-                <td>${invoiceDisplay}</td>
-                <td style="${statusStyle}">${s.status}</td>
-                <td>
-                    <button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>
-                    ${cancelAction}
-                </td>
-            </tr>`;
+            let matchSlip = true;
+            if (fSlipClient && !String(s.client).toLowerCase().includes(fSlipClient)) matchSlip = false;
+            if (fSlipInv && !String(s.invoice).toLowerCase().includes(fSlipInv)) matchSlip = false;
+            if (fSlipStatus && !String(s.status).toLowerCase().includes(fSlipStatus)) matchSlip = false;
+
+            if (matchSlip) {
+                let isCanceled = s.status === 'Canceled';
+                let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
+                let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
+                
+                let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : 
+                                     (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
+                
+                slb.innerHTML += `<tr>
+                    <td>${s.date}</td>
+                    <td>${s.client}</td>
+                    <td>${s.transport}</td>
+                    <td>${invoiceDisplay}</td>
+                    <td style="${statusStyle}">${s.status}</td>
+                    <td>
+                        <button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>
+                        ${cancelAction}
+                    </td>
+                </tr>`;
+            }
         });
 
         updateSelectedTotal();
