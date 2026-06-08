@@ -18,7 +18,6 @@
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         input[type="text"], input[type="number"], select { padding: 12px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 14px; }
         
-        /* New Checkbox Styling */
         input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; margin: 0; }
         .select-all-container { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px; background: white; border-radius: 6px; border: 1px solid #ddd; }
         .select-all-container label { font-weight: bold; cursor: pointer; color: #333; font-size: 14px; }
@@ -34,10 +33,17 @@
         .btn-revert { background: #dc3545; }
         .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
-        
         .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
         .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
         .limit-msg { text-align: center; color: #888; font-style: italic; background: #fdfdfd; }
+
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; }
+        .modal-box { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .modal-box h3 { margin-top: 0; color: var(--primary); margin-bottom: 20px;}
+        .modal-box label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; }
+        .modal-box input { width: 100%; margin-bottom: 15px; background: #fdfdfd; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -51,7 +57,6 @@
 <div class="content">
     <div id="inv" class="section active">
         <div id="sortSummary" class="summary-container"></div>
-
         <div class="card">
             <div class="grid">
                 <input type="text" id="rNo" placeholder="Roll No">
@@ -68,7 +73,7 @@
         </div>
         
         <div id="selectedTotal" class="live-counter">Selected: 0.00 Meters (0 Rolls)</div>
-        <button style="background:var(--accent); margin-top: 2px;" onclick="makeSlip()">Generate Packing Slip</button>
+        <button style="background:var(--accent); margin-top: 2px;" onclick="openSlipModal()">Generate Packing Slip</button>
         
         <div class="select-all-container">
             <input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this)">
@@ -109,6 +114,25 @@
     </div>
 </div>
 
+<div id="slipModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>Generate Packing Slip</h3>
+        
+        <label>Select or Type Client:</label>
+        <input type="text" id="modalClientInput" list="clientDatalist" placeholder="Click to choose or type new..." autocomplete="off">
+        <datalist id="clientDatalist"></datalist>
+
+        <label>Select or Type Transport:</label>
+        <input type="text" id="modalTransportInput" list="transportDatalist" placeholder="Click to choose or type new..." autocomplete="off">
+        <datalist id="transportDatalist"></datalist>
+
+        <div class="modal-buttons">
+            <button onclick="confirmSlipModal()" style="background:#28a745; margin-top:0;">Confirm & Generate</button>
+            <button onclick="closeSlipModal()" style="background:#dc3545; margin-top:0;">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
     <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
     <div style="font-size: 18px; margin-bottom: 20px;">
@@ -119,9 +143,7 @@
     </div>
     <table border="1" style="width:100%; border-collapse:collapse; text-align: center;">
         <thead>
-            <tr style="background:#f2f2f2;">
-                <th>Sr. No.</th><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th>
-            </tr>
+            <tr style="background:#f2f2f2;"><th>Sr. No.</th><th>Roll No</th><th>Sort No</th><th>Grade</th><th>Meters</th><th>Width</th><th>Net Wt</th></tr>
         </thead>
         <tbody id="slipItems"></tbody>
     </table>
@@ -130,12 +152,13 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwIbfq4xxr2EROEL8i-g3Ft54-Ff5boQ6-aTIkSfI41L-6UE6nNprdmZQSTPIuLjR3pzA/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzzpNoJ8kxtARviI9U7gTsXyH7_K4ObQPQcvXwwTd7mBAw_kbaCV5FG4idl_pi2n1i7fA/exec"; 
     
-    let db = { inventory: [], slips: [] };
+    let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
     let renderTimer; 
+    let pendingSlipRolls = []; 
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -161,7 +184,6 @@
         renderTimer = setTimeout(render, 250); 
     }
 
-    // Toggles all visible checkboxes
     function toggleSelectAll(source) {
         const checkboxes = document.querySelectorAll('#invBody .cb');
         checkboxes.forEach(cb => { cb.checked = source.checked; });
@@ -173,13 +195,15 @@
             const statusDisplay = document.getElementById('selectedTotal');
             if(statusDisplay) statusDisplay.innerText = "Loading system data...";
             
-            const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime());
+            const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime(), { redirect: 'follow' });
             if (!res.ok) throw new Error("Network issue");
             
             db = await res.json();
             
             if (!db.inventory) db.inventory = [];
             if (!db.slips) db.slips = [];
+            if (!db.clients) db.clients = [];
+            if (!db.transporters) db.transporters = [];
             
             render();
         } catch (error) {
@@ -192,7 +216,8 @@
         return await fetch(SCRIPT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            redirect: 'follow'
         });
     }
 
@@ -209,7 +234,6 @@
         const fInvRoll = textVal('fInvRoll');
         const fInvSort = textVal('fInvSort');
         const fInvGrade = textVal('fInvGrade');
-
         const fSlipClient = textVal('fSlipClient');
         const fSlipInv = textVal('fSlipInv');
         const fSlipStatus = textVal('fSlipStatus');
@@ -234,7 +258,6 @@
 
                 if (matchCol) {
                     sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
-
                     if (invCount < LIMIT) {
                         invHTML.push(`<tr>
                             <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
@@ -283,17 +306,22 @@
         ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? `<tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
         slb.innerHTML = slipHTML.join('') + (slipCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
 
-        // Reset the Select All checkbox when view changes
         const sa = document.getElementById('selectAllCb');
         if (sa) sa.checked = false;
-
+        
+        buildDatalists();
         updateSelectedTotal();
+    }
+
+    // Populates the dropdown lists dynamically
+    function buildDatalists() {
+        document.getElementById('clientDatalist').innerHTML = db.clients.map(c => `<option value="${c}">`).join('');
+        document.getElementById('transportDatalist').innerHTML = db.transporters.map(t => `<option value="${t}">`).join('');
     }
 
     document.getElementById('invBody').addEventListener('change', function(e) {
         if (e.target.classList.contains('cb')) { 
             updateSelectedTotal();
-            // Automatically uncheck 'Select All' if a user manually unchecks a single item
             if (!e.target.checked) {
                 const sa = document.getElementById('selectAllCb');
                 if (sa) sa.checked = false;
@@ -352,7 +380,6 @@
     async function saveInv() {
         const rollInput = val('rNo').trim();
         if(!rollInput) return alert("Roll No is required!");
-
         if (!isEditMode) {
             const match = db.inventory.some(i => String(i.rollNo).trim().toLowerCase() === rollInput.toLowerCase());
             if(match) return alert("Error: Roll Number '" + rollInput + "' already exists!");
@@ -370,20 +397,35 @@
         loadData();
     }
 
-    async function makeSlip() {
-        const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
-        if (!sel.length) return alert("Select rolls!");
-        const cli = prompt("Client Name?");
-        const trans = prompt("Transport Name?");
-        if (!cli || !trans) return;
+    function openSlipModal() {
+        pendingSlipRolls = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
+        if (!pendingSlipRolls.length) return alert("Select rolls first!");
         
+        document.getElementById('modalClientInput').value = '';
+        document.getElementById('modalTransportInput').value = '';
+        document.getElementById('slipModal').style.display = 'flex';
+    }
+
+    function closeSlipModal() {
+        document.getElementById('slipModal').style.display = 'none';
+        pendingSlipRolls = [];
+    }
+
+    async function confirmSlipModal() {
+        const cli = document.getElementById('modalClientInput').value.trim();
+        const trans = document.getElementById('modalTransportInput').value.trim();
+        
+        if (!cli || !trans) return alert("Client and Transport fields are required.");
+        
+        closeSlipModal();
+
         const statusDisplay = document.getElementById('selectedTotal');
         const originalText = statusDisplay.innerText;
         statusDisplay.innerText = "Saving to database... Please wait.";
 
         try {
-            await safePost({action:"allot", rollNos:sel, client:cli, transport:trans});
-            buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
+            await safePost({action:"allot", rollNos:pendingSlipRolls, client:cli, transport:trans});
+            buildImage(cli, trans, new Date().toLocaleDateString(), pendingSlipRolls, "");
             loadData();
         } catch (error) {
             console.error("Post error:", error);
