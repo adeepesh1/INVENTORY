@@ -24,9 +24,7 @@
         .summary-card { background: #fff; padding: 10px; border-radius: 8px; border-left: 5px solid var(--primary); min-width: 100px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s; }
         .summary-card:hover { background: #f1f3f4; }
         
-        /* FIX: Corrects giant stretching buttons */
         .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; width: auto !important; margin-top: 0 !important; }
-        
         .btn-revert { background: #dc3545; }
         .btn-edit { background: #007bff; }
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
@@ -41,9 +39,7 @@
 <div class="nav">
     <div class="tab active" onclick="switchLoc('Main', this)">📦 Stock</div>
     <div class="tab" onclick="switchLoc('Nandan', this)">🏢 Nandan</div>
-    <div class="tab" onclick="showTab('ord', this)">📑 Orders</div>
     <div class="tab" onclick="showTab('slipView', this)">📜 Slips</div>
-    <div class="tab" onclick="showTab('hist', this)">🕒 History</div>
 </div>
 
 <div class="content">
@@ -83,26 +79,6 @@
         </table>
     </div>
 
-    <div id="ord" class="section">
-        <div class="card">
-            <div class="grid"><input type="text" id="oClient" placeholder="Client"><input type="text" id="oSort" placeholder="Sort"><input type="number" id="oMtr" placeholder="Mtrs"><input type="number" id="oRate" placeholder="Rate"></div>
-            <button style="background:#2ecc71" onclick="saveOrd()">Save Order</button>
-        </div>
-        <table>
-            <thead>
-                <tr><th>ID</th><th>Client</th><th>Sort</th><th>Mtrs</th><th>Rate</th><th>Status</th></tr>
-                <tr class="filter-row">
-                    <td><input type="text" id="fOrdId" oninput="debouncedRender()" placeholder="ID..."></td>
-                    <td><input type="text" id="fOrdClient" oninput="debouncedRender()" placeholder="Client..."></td>
-                    <td><input type="text" id="fOrdSort" oninput="debouncedRender()" placeholder="Sort..."></td>
-                    <td></td><td></td>
-                    <td><input type="text" id="fOrdStatus" oninput="debouncedRender()" placeholder="Status..."></td>
-                </tr>
-            </thead>
-            <tbody id="ordBody"></tbody>
-        </table>
-    </div>
-
     <div id="slipView" class="section">
         <h3>Archive</h3>
         <table>
@@ -118,24 +94,6 @@
                 </tr>
             </thead>
             <tbody id="slipListBody"></tbody>
-        </table>
-    </div>
-
-    <div id="hist" class="section">
-        <h3>Sold Rolls</h3>
-        <table>
-            <thead>
-                <tr><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Sold To</th><th>Loc.</th><th>Action</th></tr>
-                <tr class="filter-row">
-                    <td><input type="text" id="fHistRoll" oninput="debouncedRender()" placeholder="Roll..."></td>
-                    <td><input type="text" id="fHistSort" oninput="debouncedRender()" placeholder="Sort..."></td>
-                    <td><input type="text" id="fHistGrade" oninput="debouncedRender()" placeholder="Grade..."></td>
-                    <td></td>
-                    <td><input type="text" id="fHistClient" oninput="debouncedRender()" placeholder="Client..."></td>
-                    <td></td><td></td>
-                </tr>
-            </thead>
-            <tbody id="histBody"></tbody>
         </table>
     </div>
 </div>
@@ -161,9 +119,9 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHlBq8akEp8wOMvheS8GRGljOBZjfg5lKwObvQGoHI_pop6cd6cmN5XQkZR6veaAdlYQ/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5xdfqeYYJR3XKHJ0T3IsLDeDcrptfWXeej_jbcwtwBqGH3Dpq2zKxskZ9c6FWld6E9g/exec"; 
     
-    let db = { inventory: [], orders: [], slips: [] };
+    let db = { inventory: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
     let renderTimer; 
@@ -201,7 +159,6 @@
             db = await res.json();
             
             if (!db.inventory) db.inventory = [];
-            if (!db.orders) db.orders = [];
             if (!db.slips) db.slips = [];
             
             render();
@@ -213,8 +170,6 @@
 
     function render() {
         const ib = document.getElementById('invBody');
-        const hb = document.getElementById('histBody');
-        const ob = document.getElementById('ordBody');
         const slb = document.getElementById('slipListBody');
         const sm = document.getElementById('sortSummary');
         
@@ -227,25 +182,14 @@
         const fInvSort = textVal('fInvSort');
         const fInvGrade = textVal('fInvGrade');
 
-        const fHistRoll = textVal('fHistRoll');
-        const fHistSort = textVal('fHistSort');
-        const fHistGrade = textVal('fHistGrade');
-        const fHistClient = textVal('fHistClient');
-
-        const fOrdId = textVal('fOrdId');
-        const fOrdClient = textVal('fOrdClient');
-        const fOrdSort = textVal('fOrdSort');
-        const fOrdStatus = textVal('fOrdStatus');
-
         const fSlipClient = textVal('fSlipClient');
         const fSlipInv = textVal('fSlipInv');
         const fSlipStatus = textVal('fSlipStatus');
         
         sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all text filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
         
-        // FIX: Array Buffering. This builds the HTML in memory first, making it 50x faster to load.
-        let invHTML = [], histHTML = [], ordHTML = [], slipHTML = [];
-        let invCount = 0, histCount = 0, ordCount = 0, slipCount = 0;
+        let invHTML = [], slipHTML = [];
+        let invCount = 0, slipCount = 0;
         let sortTotals = {};
         const LIMIT = 150; 
 
@@ -254,41 +198,25 @@
             let r = String(i.rollNo || "");
             let g = String(i.grade || "");
 
-            if (i.status === 'Available') {
-                if (i.location === currentLocation) {
-                    let matchCol = true;
-                    if (fInvRoll && !r.toLowerCase().includes(fInvRoll)) matchCol = false;
-                    if (fInvSort && !s.toLowerCase().includes(fInvSort)) matchCol = false;
-                    if (fInvGrade && !g.toLowerCase().includes(fInvGrade)) matchCol = false;
+            if (i.status === 'Available' && i.location === currentLocation) {
+                let matchCol = true;
+                if (fInvRoll && !r.toLowerCase().includes(fInvRoll)) matchCol = false;
+                if (fInvSort && !s.toLowerCase().includes(fInvSort)) matchCol = false;
+                if (fInvGrade && !g.toLowerCase().includes(fInvGrade)) matchCol = false;
 
-                    if (matchCol) {
-                        sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
+                if (matchCol) {
+                    sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
 
-                        if (invCount < LIMIT) {
-                            invHTML.push(`<tr>
-                                <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
-                                <td>${i.rollNo}</td>
-                                <td><button class="btn-small" style="background: #e8f0fe; color: var(--primary);" onclick="document.getElementById('fInvSort').value='${i.sortNo}'; debouncedRender();" title="Filter by Sort">${i.sortNo}</button></td>
-                                <td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
-                                <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
-                            </tr>`);
-                        }
-                        invCount++;
+                    if (invCount < LIMIT) {
+                        invHTML.push(`<tr>
+                            <td><input type="checkbox" class="cb" data-r="${i.rollNo}"></td>
+                            <td>${i.rollNo}</td>
+                            <td><button class="btn-small" style="background: #e8f0fe; color: var(--primary);" onclick="document.getElementById('fInvSort').value='${i.sortNo}'; debouncedRender();" title="Filter by Sort">${i.sortNo}</button></td>
+                            <td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
+                            <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
+                        </tr>`);
                     }
-                }
-            } else {
-                let matchHist = true;
-                let c = String(i.soldTo || "").toLowerCase();
-                if (fHistRoll && !r.toLowerCase().includes(fHistRoll)) matchHist = false;
-                if (fHistSort && !s.toLowerCase().includes(fHistSort)) matchHist = false;
-                if (fHistGrade && !g.toLowerCase().includes(fHistGrade)) matchHist = false;
-                if (fHistClient && !c.includes(fHistClient)) matchHist = false;
-
-                if (matchHist) {
-                    if (histCount < LIMIT) {
-                        histHTML.push(`<tr><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td><b>${i.soldTo || '-'}</b></td><td>${i.location || 'Main'}</td><td><button class="btn-small btn-revert" onclick="revert('${i.rollNo}')">Revert</button></td></tr>`);
-                    }
-                    histCount++;
+                    invCount++;
                 }
             }
         });
@@ -296,28 +224,6 @@
         for (let s in sortTotals) {
             sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('fInvSort').value='${s}'; debouncedRender();" title="Filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
         }
-
-        db.orders.forEach(o => {
-            let idStr = String(o.id || "").toLowerCase();
-            let cStr = String(o.client || "").toLowerCase();
-            let sStr = String(o.sort || "").toLowerCase();
-            let stStr = String(o.status || "").toLowerCase();
-
-            let matchOrd = true;
-            if (fOrdId && !idStr.includes(fOrdId)) matchOrd = false;
-            if (fOrdClient && !cStr.includes(fOrdClient)) matchOrd = false;
-            if (fOrdSort && !sStr.includes(fOrdSort)) matchOrd = false;
-            if (fOrdStatus && !stStr.includes(fOrdStatus)) matchOrd = false;
-
-            if (matchOrd) {
-                if (ordCount < LIMIT) {
-                    const stats = ["Pending", "Ready", "Completed"];
-                    let opt = stats.map(s => `<option value="${s}" ${o.status == s ? 'selected' : ''}>${s}</option>`).join('');
-                    ordHTML.push(`<tr><td>${o.id}</td><td>${o.client}</td><td>${o.sort}</td><td>${o.mtrs}</td><td>${o.rate}</td><td><select onchange="updateOrd('${o.id}', this.value)">${opt}</select></td></tr>`);
-                }
-                ordCount++;
-            }
-        });
 
         [...db.slips].reverse().forEach(s => {
             let cStr = String(s.client || "").toLowerCase();
@@ -346,10 +252,7 @@
             }
         });
 
-        // Push buffered HTML to the DOM
         ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? `<tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
-        hb.innerHTML = histHTML.join('') + (histCount > LIMIT ? `<tr><td colspan="7" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
-        ob.innerHTML = ordHTML.join('') + (ordCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
         slb.innerHTML = slipHTML.join('') + (slipCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
 
         updateSelectedTotal();
@@ -407,7 +310,6 @@
         document.getElementById('cancelEditBtn').style.display = "none";
     }
 
-    // FIX: All fetch POST requests now have the headers needed to bypass CORS blocking
     async function saveInv() {
         const rollInput = val('rNo').trim();
         if(!rollInput) return alert("Roll No is required!");
@@ -424,16 +326,11 @@
             grade: val('grade'), shade: val('shade'), location: currentLocation 
         };
         
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(p) 
-        });
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(p) });
         clearEditMode();
         loadData();
     }
 
-    // FIX: makeSlip saves to DB first, THEN triggers the image download to prevent mobile freezing
     async function makeSlip() {
         const sel = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
         if (!sel.length) return alert("Select rolls!");
@@ -444,17 +341,15 @@
         const statusDisplay = document.getElementById('selectedTotal');
         const originalText = statusDisplay.innerText;
         statusDisplay.innerText = "Saving to database... Please wait.";
+        
+        buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
 
         try {
-            await fetch(SCRIPT_URL, { 
-                method: 'POST', 
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) 
-            });
-            buildImage(cli, trans, new Date().toLocaleDateString(), sel, "");
+            await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"allot", rollNos:sel, client:cli, transport:trans}) });
             loadData();
         } catch (error) {
-            alert("Error saving packing slip configuration data.");
+            console.error("Fetch error:", error);
+            alert("Error sending data to Google Sheets.");
             statusDisplay.innerText = originalText;
         }
     }
@@ -463,21 +358,13 @@
         const inv = prompt("Enter Invoice Number:");
         if (!inv || inv.trim() === "") return;
         
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({action: "addInvoice", slipId: sid, invoice: inv}) 
-        });
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action: "addInvoice", slipId: sid, invoice: inv}) });
         loadData();
     }
 
     async function cancelSlip(sid) {
         if(!confirm("Are you sure you want to cancel this slip? All attached rolls will return to stock.")) return;
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({action:"cancelSlip", slipId:sid}) 
-        });
+        await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action:"cancelSlip", slipId:sid}) });
         loadData();
     }
 
@@ -524,34 +411,6 @@
         
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
-        });
-    }
-
-    async function revert(r) {
-        if(!confirm("Revert Roll " + r + "?")) return;
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({action:"revertRoll", rollNo:r}) 
-        });
-        loadData();
-    }
-
-    async function saveOrd() {
-        const p = { action: "addOrder", client: val('oClient'), sort: val('oSort'), mtrs: val('oMtr'), rate: val('oRate') };
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(p) 
-        });
-        loadData();
-    }
-
-    async function updateOrd(id, s) {
-        await fetch(SCRIPT_URL, { 
-            method: 'POST', 
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({action:"updateOrderStatus", orderId:id, newStatus:s}) 
         });
     }
 
