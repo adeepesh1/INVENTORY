@@ -68,12 +68,11 @@
         <table>
             <thead>
                 <tr><th>Sel</th><th>Roll</th><th>Sort</th><th>Grade</th><th>Mtrs</th><th>Width</th><th>Net Wt</th><th>Action</th></tr>
-                <!-- USING debouncedRender() for high performance -->
                 <tr class="filter-row">
                     <td></td>
-                    <td><input type="text" id="fInvRoll" oninput="debouncedRender()" placeholder="Filter Roll..."></td>
-                    <td><input type="text" id="fInvSort" oninput="debouncedRender()" placeholder="Filter Sort..."></td>
-                    <td><input type="text" id="fInvGrade" oninput="debouncedRender()" placeholder="Filter Grade..."></td>
+                    <td><input type="text" id="fInvRoll" oninput="debouncedRender()" placeholder="Roll..."></td>
+                    <td><input type="text" id="fInvSort" oninput="debouncedRender()" placeholder="Sort..."></td>
+                    <td><input type="text" id="fInvGrade" oninput="debouncedRender()" placeholder="Grade..."></td>
                     <td></td><td></td><td></td><td></td>
                 </tr>
             </thead>
@@ -159,12 +158,12 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this URL with your actual Google Apps Script web app URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcSweNFYUvGfdwvBYJQ2b1Giz1hvoUKlxJUJWzN4256c4jPO6aIAjOBV9csmHgRHutyA/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZya-KlHzus2MvcvMHAZmhhjEgNubQeudj_rTakI5yOzLR_rdJ0eQ2w9qGZcDfNEzPVA/exec"; 
     
     let db = { inventory: [], orders: [], slips: [] };
     let isEditMode = false;
     let currentLocation = 'Main'; 
-    let renderTimer; // Timer for debounce
+    let renderTimer; 
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -185,7 +184,6 @@
         render();
     }
 
-    // Debounce function to stop browser freezing while typing
     function debouncedRender() {
         clearTimeout(renderTimer);
         renderTimer = setTimeout(render, 250); 
@@ -242,11 +240,10 @@
         
         sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all text filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
         
-        // High Performance Arrays
         let invHTML = [], histHTML = [], ordHTML = [], slipHTML = [];
         let invCount = 0, histCount = 0, ordCount = 0, slipCount = 0;
         let sortTotals = {};
-        const LIMIT = 150; // Max rows to render at once to prevent hanging
+        const LIMIT = 150; 
 
         db.inventory.forEach(i => {
             let s = String(i.sortNo || "N/A");
@@ -345,7 +342,6 @@
             }
         });
 
-        // Push buffered HTML to the DOM all at once (Fast)
         ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? `<tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
         hb.innerHTML = histHTML.join('') + (histCount > LIMIT ? `<tr><td colspan="7" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
         ob.innerHTML = ordHTML.join('') + (ordCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
