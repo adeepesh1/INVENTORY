@@ -487,10 +487,42 @@
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
         
+        html2canvasdocument.getElementById('slipItems').innerHTML = h;
+        document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
+        
+        // --- UPDATED iOS-SAFE DOWNLOAD LOGIC ---
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
-            const a = document.createElement('a'); a.href = c.toDataURL(); a.download = `Slip_${cli}.png`; a.click();
+            const fileName = `Slip_${cli}.png`;
+            
+            c.toBlob(function(blob) {
+                const file = new File([blob], fileName, { type: 'image/png' });
+                
+                // 1. Check if the device supports native mobile sharing (iOS/Android)
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        files: [file],
+                        title: 'Packing Slip',
+                        text: `Packing Slip for ${cli}`
+                    }).catch(err => {
+                        console.log("Share canceled or failed.", err);
+                        fallbackDownload(c.toDataURL(), fileName); // Fallback if user cancels
+                    });
+                } else {
+                    // 2. Standard Desktop Fallback
+                    fallbackDownload(c.toDataURL(), fileName);
+                }
+            });
+
+            function fallbackDownload(url, name) {
+                const a = document.createElement('a'); 
+                a.href = url; 
+                a.download = name; 
+                document.body.appendChild(a); // Required for some browsers
+                a.click();
+                document.body.removeChild(a);
+            }
         });
-    }
+        // -----------------------------------------
 
     window.onload = loadData;
 </script>
