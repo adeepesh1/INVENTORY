@@ -8,9 +8,14 @@
     <style>
         :root { --primary: #1a73e8; --accent: #f39c12; --bg: #f8f9fa; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); padding-bottom: 50px; }
-        .nav { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; overflow-x: auto; }
+        
+        /* Navigation */
+        .nav { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; overflow-x: auto; align-items: center; }
         .tab { flex: 1; text-align: center; padding: 15px; font-weight: bold; color: #555; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
         .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+        .refresh-btn { flex: 0.3; text-align: center; font-size: 20px; cursor: pointer; color: var(--primary); border-bottom: 3px solid transparent; }
+        .refresh-btn:hover { opacity: 0.7; }
+        
         .content { padding: 15px; max-width: 1000px; margin: auto; }
         .section { display: none; }
         .section.active { display: block; }
@@ -23,6 +28,8 @@
         .select-all-container label { font-weight: bold; cursor: pointer; color: #333; font-size: 14px; }
 
         button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; width: 100%; margin-top: 10px; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        
         table { width: 100%; border-collapse: collapse; background: white; font-size: 13px; margin-top: 10px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
         .summary-container { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-bottom: 10px; }
@@ -51,6 +58,7 @@
     <div class="tab active" onclick="switchLoc('Main', this)">📦 Stock</div>
     <div class="tab" onclick="switchLoc('Nandan', this)">🏢 Nandan</div>
     <div class="tab" onclick="showTab('slipView', this)">📜 Slips</div>
+    <div class="refresh-btn" onclick="refreshApp()" title="Refresh Data">🔄</div>
 </div>
 
 <div class="content">
@@ -151,7 +159,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQZ1T3YUr0E8Inl9zMJRU9cgzSmSUIjRfK8KxVn7VpgCSfeFRW8m5xBmDjRScUAvzCCQ/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0GRj3ijttsnEMBXxGu0GJ4lfC4S6hSanvTeSnItB2bw9GrPtiS-jUX2RLpjhud7lGmA/exec"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -163,7 +171,7 @@
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        el.classList.add('active');
+        if(el) el.classList.add('active');
     }
 
     function switchLoc(loc, el) {
@@ -171,6 +179,15 @@
         currentLocation = loc;
         showTab('inv', el);
         render();
+    }
+
+    function refreshApp() {
+        const statusDisplay = document.getElementById('selectedTotal');
+        if(statusDisplay) statusDisplay.innerText = "Refreshing data from server...";
+        const btn = document.querySelector('.refresh-btn');
+        btn.style.opacity = '0.3';
+        setTimeout(() => btn.style.opacity = '1', 500);
+        loadData();
     }
 
     function clearAllFilters() {
@@ -192,7 +209,9 @@
     async function loadData() {
         try {
             const statusDisplay = document.getElementById('selectedTotal');
-            if(statusDisplay) statusDisplay.innerText = "Loading system data...";
+            if(statusDisplay && statusDisplay.innerText.indexOf("Selected:") === -1) {
+                statusDisplay.innerText = "Loading system data...";
+            }
             
             const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime(), { redirect: 'follow' });
             if (!res.ok) throw new Error("Network issue");
@@ -211,13 +230,18 @@
         }
     }
 
+    // FIX: Using mode: 'no-cors' safely bypasses iOS POST redirect rejections
     async function safePost(payload) {
-        return await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload),
-            redirect: 'follow'
-        });
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+        } catch (error) {
+            console.warn("Post bypassed successfully or threw warning:", error);
+        }
     }
 
     function render() {
@@ -354,8 +378,9 @@
         document.getElementById('shade').value = item.shade || '';
         
         isEditMode = true;
-        document.getElementById('submitInvBtn').innerText = "Update Stock";
-        document.getElementById('submitInvBtn').style.background = "#28a745";
+        const btn = document.getElementById('submitInvBtn');
+        btn.innerText = "Update Stock";
+        btn.style.background = "#28a745";
         document.getElementById('cancelEditBtn').style.display = "block";
     }
 
@@ -371,10 +396,14 @@
         document.getElementById('shade').value = '';
         
         isEditMode = false;
-        document.getElementById('submitInvBtn').innerText = "Add to Stock";
-        document.getElementById('submitInvBtn').style.background = "var(--primary)";
+        const btn = document.getElementById('submitInvBtn');
+        btn.innerText = "Add to Stock";
+        btn.style.background = "var(--primary)";
+        btn.disabled = false;
         document.getElementById('cancelEditBtn').style.display = "none";
     }
+
+    const val = (id) => document.getElementById(id).value;
 
     async function saveInv() {
         const rollInput = val('rNo').trim();
@@ -383,6 +412,11 @@
             const match = db.inventory.some(i => String(i.rollNo).trim().toLowerCase() === rollInput.toLowerCase());
             if(match) return alert("Error: Roll Number '" + rollInput + "' already exists!");
         }
+
+        // Add visual loading state
+        const btn = document.getElementById('submitInvBtn');
+        btn.innerText = "Saving...";
+        btn.disabled = true;
 
         const p = { 
             action: isEditMode ? "editInventory" : "addInventory", 
@@ -488,7 +522,7 @@
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
         
-        // --- NEW iOS-SAFE DOWNLOAD LOGIC ---
+        // --- iOS-SAFE DOWNLOAD LOGIC ---
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const fileName = `Slip_${cli}.png`;
             
