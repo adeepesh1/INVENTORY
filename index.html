@@ -9,7 +9,6 @@
         :root { --primary: #1a73e8; --accent: #f39c12; --bg: #f8f9fa; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); padding-bottom: 50px; }
         
-        /* Navigation */
         .nav { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; overflow-x: auto; align-items: center; }
         .tab { flex: 1; text-align: center; padding: 15px; font-weight: bold; color: #555; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
         .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
@@ -39,6 +38,9 @@
         .btn-small { background: #34a853; color: white; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; border: none; width: auto !important; margin-top: 0 !important; }
         .btn-revert { background: #dc3545; }
         .btn-edit { background: #007bff; }
+        .btn-edit-client { background: #8e44ad; } 
+        .btn-edit-transport { background: #e67e22; } /* New Orange Button for Editing Transport */
+        
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
         .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
         .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
@@ -121,7 +123,6 @@
     </div>
 </div>
 
-<!-- Modal for Hybrid Dropdown/Typing Selection -->
 <div id="slipModal" class="modal-overlay">
     <div class="modal-box">
         <h3>Generate Packing Slip</h3>
@@ -159,7 +160,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0GRj3ijttsnEMBXxGu0GJ4lfC4S6hSanvTeSnItB2bw9GrPtiS-jUX2RLpjhud7lGmA/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTXZXdf3Okx7vJTYtSgi0o7byYUNvlQWtrgK25eSRRS8dlaZ79cTNKzMwNezCHd-ceFg/exec"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -230,7 +231,6 @@
         }
     }
 
-    // FIX: Using mode: 'no-cors' safely bypasses iOS POST redirect rejections
     async function safePost(payload) {
         try {
             await fetch(SCRIPT_URL, {
@@ -317,10 +317,13 @@
                     let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
                     let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
                     
+                    let editClientAction = isCanceled ? '' : `<button class="btn-small btn-edit-client" style="margin-left:5px;" onclick="editSlipClient('${s.id}')">✎ Client</button>`;
+                    let editTransportAction = isCanceled ? '' : `<button class="btn-small btn-edit-transport" style="margin-left:5px;" onclick="editSlipTransport('${s.id}')">🚚 Transp</button>`;
+                    
                     slipHTML.push(`<tr>
                         <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
                         <td style="${statusStyle}">${s.status}</td>
-                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${cancelAction}</td>
+                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${editClientAction}${editTransportAction}${cancelAction}</td>
                     </tr>`);
                 }
                 slipCount++;
@@ -413,7 +416,6 @@
             if(match) return alert("Error: Roll Number '" + rollInput + "' already exists!");
         }
 
-        // Add visual loading state
         const btn = document.getElementById('submitInvBtn');
         btn.innerText = "Saving...";
         btn.disabled = true;
@@ -461,10 +463,38 @@
             pendingSlipRolls = []; 
             loadData();
         } catch (error) {
-            console.error("Post error:", error);
             alert("Error sending data to Google Sheets.");
             statusDisplay.innerText = originalText;
         }
+    }
+
+    async function editSlipClient(sid) {
+        const slip = db.slips.find(x => String(x.id) === String(sid));
+        if(!slip) return;
+        
+        const newClient = prompt("Enter the new Client Name:", slip.client);
+        if (!newClient || newClient.trim() === "" || newClient === slip.client) return;
+
+        const statusDisplay = document.getElementById('selectedTotal');
+        if(statusDisplay) statusDisplay.innerText = "Updating client name... Please wait.";
+
+        await safePost({action: "editSlipClient", slipId: sid, newClient: newClient.trim()});
+        loadData();
+    }
+
+    // --- NEW FEATURE: Function to Edit Transport Name ---
+    async function editSlipTransport(sid) {
+        const slip = db.slips.find(x => String(x.id) === String(sid));
+        if(!slip) return;
+        
+        const newTransport = prompt("Enter the new Transport Name:", slip.transport);
+        if (!newTransport || newTransport.trim() === "" || newTransport === slip.transport) return;
+
+        const statusDisplay = document.getElementById('selectedTotal');
+        if(statusDisplay) statusDisplay.innerText = "Updating transport name... Please wait.";
+
+        await safePost({action: "editSlipTransport", slipId: sid, newTransport: newTransport.trim()});
+        loadData();
     }
 
     async function addInvoice(sid) {
@@ -529,7 +559,6 @@
             c.toBlob(function(blob) {
                 const file = new File([blob], fileName, { type: 'image/png' });
                 
-                // Check if device supports native mobile sharing (iOS/Android)
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     navigator.share({
                         files: [file],
@@ -537,10 +566,9 @@
                         text: `Packing Slip for ${cli}`
                     }).catch(err => {
                         console.log("Share canceled or failed.", err);
-                        fallbackDownload(c.toDataURL(), fileName); // Fallback if canceled
+                        fallbackDownload(c.toDataURL(), fileName); 
                     });
                 } else {
-                    // Standard Desktop Fallback
                     fallbackDownload(c.toDataURL(), fileName);
                 }
             });
