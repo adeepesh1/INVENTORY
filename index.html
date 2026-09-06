@@ -54,20 +54,37 @@
         .modal-box input { width: 100%; margin-bottom: 15px; background: #fdfdfd; }
         .modal-buttons { display: flex; gap: 10px; margin-top: 10px; }
 
-        /* --- UPDATED PRINT STYLES FOR BATCH STICKERS --- */
+        /* --- 100x40mm TSC 2-UP STICKER TEMPLATE --- */
         #multiStickerTemplate { display: none; }
         @media print {
             body * { visibility: hidden; }
             #multiStickerTemplate, #multiStickerTemplate * { visibility: visible; }
             #multiStickerTemplate { position: absolute; left: 0; top: 0; width: 100mm; }
+            
             .sticker-page {
-                width: 100mm; height: 50mm;
-                padding: 5mm; box-sizing: border-box;
-                font-family: monospace; color: black;
-                page-break-after: always; /* Forces printer to cut/advance to next label */
+                width: 100mm; 
+                height: 40mm;
+                display: flex;
+                page-break-after: always;
                 break-after: page;
             }
-            @page { size: 100mm 50mm; margin: 0; }
+            .sticker-half {
+                width: 50mm;
+                height: 40mm;
+                padding: 4mm 2mm 2mm 5mm; /* Centers text block exactly inside half */
+                box-sizing: border-box;
+            }
+            .sticker-grid {
+                display: grid;
+                grid-template-columns: 18mm 3mm auto; /* Perfectly aligns colons */
+                row-gap: 1.5mm;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 12px;
+                font-weight: bold;
+                color: black;
+                letter-spacing: 0.5px;
+            }
+            @page { size: 100mm 40mm; margin: 0; }
         }
     </style>
 </head>
@@ -158,7 +175,7 @@
     </div>
 </div>
 
-<!-- DYNAMIC MULTI-STICKER TEMPLATE (Hidden until Print is clicked) -->
+<!-- DYNAMIC MULTI-STICKER TEMPLATE -->
 <div id="multiStickerTemplate"></div>
 
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
@@ -180,7 +197,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTXZXdf3Okx7vJTYtSgi0o7byYUNvlQWtrgK25eSRRS8dlaZ79cTNKzMwNezCHd-ceFg/exec"; 
+    const SCRIPT_URL = "YOUR_GOOGLE_WEB_APP_URL_HERE"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -342,8 +359,6 @@
                     
                     let editClientAction = isCanceled ? '' : `<button class="btn-small btn-edit-client" style="margin-left:5px;" onclick="editSlipClient('${s.id}')">✎ Client</button>`;
                     let editTransportAction = isCanceled ? '' : `<button class="btn-small btn-edit-transport" style="margin-left:5px;" onclick="editSlipTransport('${s.id}')">🚚 Transp</button>`;
-                    
-                    // --- NEW: Add Print Button to Slips ---
                     let printStickersAction = isCanceled ? '' : `<button class="btn-small btn-print" style="margin-left:5px;" onclick="printSlipStickers('${s.id}')" title="Print All Roll Stickers">🖨️</button>`;
 
                     slipHTML.push(`<tr>
@@ -458,25 +473,26 @@
         loadData();
     }
 
-    // --- HELPER FUNCTION TO GENERATE STICKER HTML ---
+    // --- HELPER FUNCTION: Generates 2 identical side-by-side stickers ---
     function generateStickerHTML(item) {
+        const innerHTML = `
+            <div class="sticker-grid">
+                <div>SORT NO</div><div>:</div><div>${item.sortNo || '-'}</div>
+                <div>ROLL NO</div><div>:</div><div>${item.rollNo}</div>
+                <div>WIDTH</div><div>:</div><div>${item.width || '-'}</div>
+                <div>WEIGHT</div><div>:</div><div>${item.netWeight || '-'}</div>
+                <div>METER</div><div>:</div><div>${item.meters || '-'}</div>
+                <div>GRADE</div><div>:</div><div>${item.grade || '-'}</div>
+            </div>
+        `;
         return `
         <div class="sticker-page">
-            <h2 style="text-align: center; margin: 0 0 10px 0; border-bottom: 2px solid black; padding-bottom: 5px;">ROLL TICKET</h2>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 14px; font-weight: bold;">
-                <div>ROLL NO: <span>${item.rollNo}</span></div>
-                <div>SORT NO: <span>${item.sortNo || '-'}</span></div>
-                <div>METERS: <span>${item.meters || '-'}</span></div>
-                <div>NET WT: <span>${item.netWeight || '-'}</span></div>
-                <div>GRADE: <span>${item.grade || '-'}</span></div>
-                <div>SHADE: <span>${item.shade || '-'}</span></div>
-            </div>
-            <div style="text-align: center; margin-top: 15px; font-size: 11px;">TEXTILE ERP PRO</div>
+            <div class="sticker-half">${innerHTML}</div>
+            <div class="sticker-half">${innerHTML}</div>
         </div>
         `;
     }
 
-    // Print a single sticker from inventory
     function printSticker(rNo) {
         const item = db.inventory.find(i => String(i.rollNo) === String(rNo));
         if(!item) return;
@@ -487,12 +503,10 @@
         document.getElementById('multiStickerTemplate').style.display = 'none';
     }
 
-    // --- NEW: Print all stickers for a specific slip ---
     function printSlipStickers(sid) {
         const slip = db.slips.find(x => String(x.id) === String(sid));
         if(!slip) return;
 
-        // Parse rolls attached to this slip
         const arrayRolls = String(slip.rolls).replace(/^'/, "").split(",").map(r => r.trim().toUpperCase());
         const itemsToPrint = db.inventory.filter(i => arrayRolls.includes(String(i.rollNo).trim().toUpperCase()));
 
