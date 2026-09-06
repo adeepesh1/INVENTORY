@@ -39,7 +39,8 @@
         .btn-revert { background: #dc3545; }
         .btn-edit { background: #007bff; }
         .btn-edit-client { background: #8e44ad; } 
-        .btn-edit-transport { background: #e67e22; } /* New Orange Button for Editing Transport */
+        .btn-edit-transport { background: #e67e22; } 
+        .btn-print { background: #444; }
         
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
         .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
@@ -52,6 +53,22 @@
         .modal-box label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; }
         .modal-box input { width: 100%; margin-bottom: 15px; background: #fdfdfd; }
         .modal-buttons { display: flex; gap: 10px; margin-top: 10px; }
+
+        /* --- UPDATED PRINT STYLES FOR BATCH STICKERS --- */
+        #multiStickerTemplate { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #multiStickerTemplate, #multiStickerTemplate * { visibility: visible; }
+            #multiStickerTemplate { position: absolute; left: 0; top: 0; width: 100mm; }
+            .sticker-page {
+                width: 100mm; height: 50mm;
+                padding: 5mm; box-sizing: border-box;
+                font-family: monospace; color: black;
+                page-break-after: always; /* Forces printer to cut/advance to next label */
+                break-after: page;
+            }
+            @page { size: 100mm 50mm; margin: 0; }
+        }
     </style>
 </head>
 <body>
@@ -141,6 +158,9 @@
     </div>
 </div>
 
+<!-- DYNAMIC MULTI-STICKER TEMPLATE (Hidden until Print is clicked) -->
+<div id="multiStickerTemplate"></div>
+
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
     <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
     <div style="font-size: 18px; margin-bottom: 20px;">
@@ -160,7 +180,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTXZXdf3Okx7vJTYtSgi0o7byYUNvlQWtrgK25eSRRS8dlaZ79cTNKzMwNezCHd-ceFg/exec"; 
+    const SCRIPT_URL = "YOUR_GOOGLE_WEB_APP_URL_HERE"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -288,7 +308,10 @@
                             <td>${i.rollNo}</td>
                             <td><button class="btn-small" style="background: #e8f0fe; color: var(--primary);" onclick="document.getElementById('fInvSort').value='${i.sortNo}'; debouncedRender();" title="Filter by Sort">${i.sortNo}</button></td>
                             <td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td>
-                            <td><button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button></td>
+                            <td>
+                                <button class="btn-small btn-edit" onclick="editRollForm('${i.rollNo}')">Edit</button>
+                                <button class="btn-small btn-print" onclick="printSticker('${i.rollNo}')" title="Print Sticker">🖨️</button>
+                            </td>
                         </tr>`);
                     }
                     invCount++;
@@ -320,10 +343,13 @@
                     let editClientAction = isCanceled ? '' : `<button class="btn-small btn-edit-client" style="margin-left:5px;" onclick="editSlipClient('${s.id}')">✎ Client</button>`;
                     let editTransportAction = isCanceled ? '' : `<button class="btn-small btn-edit-transport" style="margin-left:5px;" onclick="editSlipTransport('${s.id}')">🚚 Transp</button>`;
                     
+                    // --- NEW: Add Print Button to Slips ---
+                    let printStickersAction = isCanceled ? '' : `<button class="btn-small btn-print" style="margin-left:5px;" onclick="printSlipStickers('${s.id}')" title="Print All Roll Stickers">🖨️</button>`;
+
                     slipHTML.push(`<tr>
                         <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
                         <td style="${statusStyle}">${s.status}</td>
-                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${editClientAction}${editTransportAction}${cancelAction}</td>
+                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${printStickersAction}${editClientAction}${editTransportAction}${cancelAction}</td>
                     </tr>`);
                 }
                 slipCount++;
@@ -432,6 +458,57 @@
         loadData();
     }
 
+    // --- HELPER FUNCTION TO GENERATE STICKER HTML ---
+    function generateStickerHTML(item) {
+        return `
+        <div class="sticker-page">
+            <h2 style="text-align: center; margin: 0 0 10px 0; border-bottom: 2px solid black; padding-bottom: 5px;">ROLL TICKET</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 14px; font-weight: bold;">
+                <div>ROLL NO: <span>${item.rollNo}</span></div>
+                <div>SORT NO: <span>${item.sortNo || '-'}</span></div>
+                <div>METERS: <span>${item.meters || '-'}</span></div>
+                <div>NET WT: <span>${item.netWeight || '-'}</span></div>
+                <div>GRADE: <span>${item.grade || '-'}</span></div>
+                <div>SHADE: <span>${item.shade || '-'}</span></div>
+            </div>
+            <div style="text-align: center; margin-top: 15px; font-size: 11px;">TEXTILE ERP PRO</div>
+        </div>
+        `;
+    }
+
+    // Print a single sticker from inventory
+    function printSticker(rNo) {
+        const item = db.inventory.find(i => String(i.rollNo) === String(rNo));
+        if(!item) return;
+
+        document.getElementById('multiStickerTemplate').innerHTML = generateStickerHTML(item);
+        document.getElementById('multiStickerTemplate').style.display = 'block';
+        window.print();
+        document.getElementById('multiStickerTemplate').style.display = 'none';
+    }
+
+    // --- NEW: Print all stickers for a specific slip ---
+    function printSlipStickers(sid) {
+        const slip = db.slips.find(x => String(x.id) === String(sid));
+        if(!slip) return;
+
+        // Parse rolls attached to this slip
+        const arrayRolls = String(slip.rolls).replace(/^'/, "").split(",").map(r => r.trim().toUpperCase());
+        const itemsToPrint = db.inventory.filter(i => arrayRolls.includes(String(i.rollNo).trim().toUpperCase()));
+
+        if (itemsToPrint.length === 0) return alert("No matching rolls found in inventory for this slip.");
+
+        let combinedHTML = "";
+        itemsToPrint.forEach(item => {
+            combinedHTML += generateStickerHTML(item);
+        });
+
+        document.getElementById('multiStickerTemplate').innerHTML = combinedHTML;
+        document.getElementById('multiStickerTemplate').style.display = 'block';
+        window.print();
+        document.getElementById('multiStickerTemplate').style.display = 'none';
+    }
+
     function openSlipModal() {
         pendingSlipRolls = Array.from(document.querySelectorAll('.cb:checked')).map(c => c.dataset.r);
         if (!pendingSlipRolls.length) return alert("Select rolls first!");
@@ -482,7 +559,6 @@
         loadData();
     }
 
-    // --- NEW FEATURE: Function to Edit Transport Name ---
     async function editSlipTransport(sid) {
         const slip = db.slips.find(x => String(x.id) === String(sid));
         if(!slip) return;
@@ -552,7 +628,6 @@
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
         
-        // --- iOS-SAFE DOWNLOAD LOGIC ---
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
             const fileName = `Slip_${cli}.png`;
             
