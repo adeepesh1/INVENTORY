@@ -54,35 +54,40 @@
         .modal-box input { width: 100%; margin-bottom: 15px; background: #fdfdfd; }
         .modal-buttons { display: flex; gap: 10px; margin-top: 10px; }
 
-        /* --- 100x40mm TSC 2-UP STICKER TEMPLATE --- */
+        /* --- BULLETPROOF PRINT STYLES --- */
         #multiStickerTemplate { display: none; }
         @media print {
-            body * { visibility: hidden; }
-            #multiStickerTemplate, #multiStickerTemplate * { visibility: visible; }
-            #multiStickerTemplate { position: absolute; left: 0; top: 0; width: 100mm; }
+            /* FIX 1: Completely remove the app from the document flow so it stops generating 222 blank pages */
+            .nav, .content, #slipModal, #slipTemplate { display: none !important; }
+            html, body { margin: 0; padding: 0; background: white; width: 100mm; height: 100%; }
+            
+            /* Show ONLY the stickers */
+            #multiStickerTemplate { display: block !important; position: static; width: 100mm; }
             
             .sticker-page {
                 width: 100mm; 
                 height: 40mm;
-                display: flex;
+                display: block; 
                 page-break-after: always;
                 break-after: page;
+                overflow: hidden;
             }
             .sticker-half {
                 width: 50mm;
                 height: 40mm;
-                padding: 4mm 2mm 2mm 5mm; /* Centers text block exactly inside half */
+                float: left; 
+                padding: 4mm 2mm 2mm 3mm;
                 box-sizing: border-box;
             }
+            /* FIX 2: Natively scale the font to 15px so you don't need 150% custom scale */
             .sticker-grid {
                 display: grid;
-                grid-template-columns: 18mm 3mm auto; /* Perfectly aligns colons */
+                grid-template-columns: 22mm 3mm auto; /* Widened slightly for the larger font */
                 row-gap: 1.5mm;
                 font-family: Arial, Helvetica, sans-serif;
-                font-size: 12px;
+                font-size: 15px; 
                 font-weight: bold;
                 color: black;
-                letter-spacing: 0.5px;
             }
             @page { size: 100mm 40mm; margin: 0; }
         }
@@ -175,7 +180,6 @@
     </div>
 </div>
 
-<!-- DYNAMIC MULTI-STICKER TEMPLATE -->
 <div id="multiStickerTemplate"></div>
 
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
@@ -473,7 +477,7 @@
         loadData();
     }
 
-    // --- HELPER FUNCTION: Generates 2 identical side-by-side stickers ---
+    // --- HELPER FUNCTION: Generates rigid 2-up sticker HTML ---
     function generateStickerHTML(item) {
         const innerHTML = `
             <div class="sticker-grid">
@@ -498,9 +502,8 @@
         if(!item) return;
 
         document.getElementById('multiStickerTemplate').innerHTML = generateStickerHTML(item);
-        document.getElementById('multiStickerTemplate').style.display = 'block';
         window.print();
-        document.getElementById('multiStickerTemplate').style.display = 'none';
+        document.getElementById('multiStickerTemplate').innerHTML = ''; // Clean up after
     }
 
     function printSlipStickers(sid) {
@@ -518,9 +521,8 @@
         });
 
         document.getElementById('multiStickerTemplate').innerHTML = combinedHTML;
-        document.getElementById('multiStickerTemplate').style.display = 'block';
         window.print();
-        document.getElementById('multiStickerTemplate').style.display = 'none';
+        document.getElementById('multiStickerTemplate').innerHTML = ''; // Clean up after
     }
 
     function openSlipModal() {
