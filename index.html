@@ -54,42 +54,72 @@
         .modal-box input { width: 100%; margin-bottom: 15px; background: #fdfdfd; }
         .modal-buttons { display: flex; gap: 10px; margin-top: 10px; }
 
-        /* --- BULLETPROOF PRINT STYLES --- */
+        /* --- BULLETPROOF THERMAL PRINT CSS (100mm x 39mm) --- */
         #multiStickerTemplate { display: none; }
+        
         @media print {
-            /* FIX 1: Completely remove the app from the document flow so it stops generating 222 blank pages */
-            .nav, .content, #slipModal, #slipTemplate { display: none !important; }
-            html, body { margin: 0; padding: 0; background: white; width: 100mm; height: 100%; }
+            body > *:not(#multiStickerTemplate) { display: none !important; }
             
-            /* Show ONLY the stickers */
-            #multiStickerTemplate { display: block !important; position: static; width: 100mm; }
-            
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100mm;
+                background: white !important;
+            }
+
+            #multiStickerTemplate {
+                display: block !important;
+                width: 100mm;
+                margin: 0;
+                padding: 0;
+            }
+
             .sticker-page {
-                width: 100mm; 
-                height: 39.5mm;
-                display: block; 
+                width: 100mm;
+                height: 39mm;
+                display: flex !important;
+                flex-direction: row !important;
                 page-break-after: always;
                 break-after: page;
+                margin: 0;
+                padding: 0;
                 overflow: hidden;
-            }
-            .sticker-half {
-                width: 49.5mm;
-                height: 39.5mm;
-                float: left; 
-                padding: 2mm 2mm 2mm 2mm;
                 box-sizing: border-box;
             }
-            /* FIX 2: Natively scale the font to 15px so you don't need 150% custom scale */
+            
+            .sticker-page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+
+            .sticker-half {
+                width: 50mm;
+                height: 39mm;
+                padding: 3mm 2mm 1mm 4mm;
+                box-sizing: border-box;
+            }
+
             .sticker-grid {
-                display: grid;
-                grid-template-columns: 22mm 3mm auto; /* Widened slightly for the larger font */
+                display: grid !important;
+                grid-template-columns: 20mm 3mm auto;
                 row-gap: 1.5mm;
-                font-family: Arial Bold, Helvetica, sans-serif;
-                font-size: 15px; 
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 14px; 
                 font-weight: bold;
                 color: black;
+                line-height: 1.1;
+                align-items: center;
             }
-            @page { size: 100mm 40mm; margin: 0; }
+
+            .sticker-grid div {
+                display: block !important;
+                margin: 0; padding: 0;
+            }
+
+            @page { 
+                size: 100mm 39mm; 
+                margin: 0; 
+            }
         }
     </style>
 </head>
@@ -180,8 +210,10 @@
     </div>
 </div>
 
+<!-- STICKER TEMPLATE -->
 <div id="multiStickerTemplate"></div>
 
+<!-- PACKING SLIP TEMPLATE -->
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
     <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
     <div style="font-size: 18px; margin-bottom: 20px;">
@@ -248,27 +280,38 @@
         updateSelectedTotal();
     }
 
-    async function loadData() {
-        try {
-            const statusDisplay = document.getElementById('selectedTotal');
-            if(statusDisplay && statusDisplay.innerText.indexOf("Selected:") === -1) {
-                statusDisplay.innerText = "Loading system data...";
+    // --- NEW STABILIZED FETCH WITH RETRY LOOP ---
+    async function loadData(retries = 3) {
+        const statusDisplay = document.getElementById('selectedTotal');
+        if(statusDisplay && statusDisplay.innerText.indexOf("Selected:") === -1) {
+            statusDisplay.innerText = "Loading system data...";
+        }
+        
+        for (let i = 0; i < retries; i++) {
+            try {
+                const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime(), { redirect: 'follow' });
+                if (!res.ok) throw new Error("Network issue");
+                
+                db = await res.json();
+                
+                if (!db.inventory) db.inventory = [];
+                if (!db.slips) db.slips = [];
+                if (!db.clients) db.clients = [];
+                if (!db.transporters) db.transporters = [];
+                
+                render();
+                return; // Exit loop on success
+            } catch (error) {
+                console.warn(Fetch attempt ${i + 1} failed:, error);
+                if (i === retries - 1) {
+                    console.error("All fetch attempts failed.");
+                    alert("Network error: Could not connect to Google Sheets after multiple attempts. Please check your connection or reload the page.");
+                    if(statusDisplay) statusDisplay.innerText = "Error loading data. Pull to refresh.";
+                } else {
+                    if(statusDisplay) statusDisplay.innerText = Retrying connection (${i + 1}/${retries})...;
+                    await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5s before retrying
+                }
             }
-            
-            const res = await fetch(SCRIPT_URL + "?t=" + new Date().getTime(), { redirect: 'follow' });
-            if (!res.ok) throw new Error("Network issue");
-            
-            db = await res.json();
-            
-            if (!db.inventory) db.inventory = [];
-            if (!db.slips) db.slips = [];
-            if (!db.clients) db.clients = [];
-            if (!db.transporters) db.transporters = [];
-            
-            render();
-        } catch (error) {
-            console.error("Fetch failure:", error);
-            alert("Could not pull data from Google Sheets. Ensure your deployment is set to 'Anyone'.");
         }
     }
 
@@ -302,7 +345,7 @@
         const fSlipInv = textVal('fSlipInv');
         const fSlipStatus = textVal('fSlipStatus');
         
-        sm.innerHTML = `<div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all text filters"><small>Reset</small><br><b>Clear Filters</b></div>`;
+        sm.innerHTML = <div class="summary-card" onclick="clearAllFilters()" style="border-left-color: #666; background: #eef2f5;" title="Clear all text filters"><small>Reset</small><br><b>Clear Filters</b></div>;
         
         let invHTML = [], slipHTML = [];
         let invCount = 0, slipCount = 0;
@@ -341,7 +384,7 @@
         });
 
         for (let s in sortTotals) {
-            sm.innerHTML += `<div class="summary-card" onclick="document.getElementById('fInvSort').value='${s}'; debouncedRender();" title="Filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>`;
+            sm.innerHTML += <div class="summary-card" onclick="document.getElementById('fInvSort').value='${s}'; debouncedRender();" title="Filter by Sort ${s}"><small>Sort ${s}</small><br><b>${sortTotals[s].toFixed(2)}m</b></div>;
         }
 
         [...db.slips].reverse().forEach(s => {
@@ -358,12 +401,12 @@
                 if (slipCount < LIMIT) {
                     let isCanceled = s.status === 'Canceled';
                     let statusStyle = isCanceled ? 'color:#dc3545; font-weight:bold;' : 'color:#28a745; font-weight:bold;';
-                    let cancelAction = isCanceled ? '' : `<button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>`;
-                    let invoiceDisplay = s.invoice ? `<b>${s.invoice}</b>` : (s.status === 'Active' ? `<button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button>` : '-');
+                    let cancelAction = isCanceled ? '' : <button class="btn-small btn-revert" style="margin-left:5px;" onclick="cancelSlip('${s.id}')">Cancel</button>;
+                    let invoiceDisplay = s.invoice ? <b>${s.invoice}</b> : (s.status === 'Active' ? <button class="btn-small btn-edit" onclick="addInvoice('${s.id}')">+ Add</button> : '-');
                     
-                    let editClientAction = isCanceled ? '' : `<button class="btn-small btn-edit-client" style="margin-left:5px;" onclick="editSlipClient('${s.id}')">✎ Client</button>`;
-                    let editTransportAction = isCanceled ? '' : `<button class="btn-small btn-edit-transport" style="margin-left:5px;" onclick="editSlipTransport('${s.id}')">🚚 Transp</button>`;
-                    let printStickersAction = isCanceled ? '' : `<button class="btn-small btn-print" style="margin-left:5px;" onclick="printSlipStickers('${s.id}')" title="Print All Roll Stickers">🖨️</button>`;
+                    let editClientAction = isCanceled ? '' : <button class="btn-small btn-edit-client" style="margin-left:5px;" onclick="editSlipClient('${s.id}')">✎ Client</button>;
+                    let editTransportAction = isCanceled ? '' : <button class="btn-small btn-edit-transport" style="margin-left:5px;" onclick="editSlipTransport('${s.id}')">🚚 Transp</button>;
+                    let printStickersAction = isCanceled ? '' : <button class="btn-small btn-print" style="margin-left:5px;" onclick="printSlipStickers('${s.id}')" title="Print All Roll Stickers">🖨️</button>;
 
                     slipHTML.push(`<tr>
                         <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
@@ -375,8 +418,8 @@
             }
         });
 
-        ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? `<tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
-        slb.innerHTML = slipHTML.join('') + (slipCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
+        ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? <tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr> : '');
+        slb.innerHTML = slipHTML.join('') + (slipCount > LIMIT ? <tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr> : '');
 
         const sa = document.getElementById('selectAllCb');
         if (sa) sa.checked = false;
@@ -386,8 +429,8 @@
     }
 
     function buildDatalists() {
-        document.getElementById('clientDatalist').innerHTML = db.clients.map(c => `<option value="${c}">`).join('');
-        document.getElementById('transportDatalist').innerHTML = db.transporters.map(t => `<option value="${t}">`).join('');
+        document.getElementById('clientDatalist').innerHTML = db.clients.map(c => <option value="${c}">).join('');
+        document.getElementById('transportDatalist').innerHTML = db.transporters.map(t => <option value="${t}">).join('');
     }
 
     document.getElementById('invBody').addEventListener('change', function(e) {
@@ -409,7 +452,7 @@
             if (item) totalMeters += parseFloat(item.meters || 0);
         });
         const counterEl = document.getElementById('selectedTotal');
-        if (counterEl) counterEl.innerText = `Selected: ${totalMeters.toFixed(2)} Meters (${checkboxes.length} Rolls)`;
+        if (counterEl) counterEl.innerText = Selected: ${totalMeters.toFixed(2)} Meters (${checkboxes.length} Rolls);
     }
 
     function editRollForm(rNo) {
@@ -477,7 +520,6 @@
         loadData();
     }
 
-    // --- HELPER FUNCTION: Generates rigid 2-up sticker HTML ---
     function generateStickerHTML(item) {
         const innerHTML = `
             <div class="sticker-grid">
@@ -503,7 +545,7 @@
 
         document.getElementById('multiStickerTemplate').innerHTML = generateStickerHTML(item);
         window.print();
-        document.getElementById('multiStickerTemplate').innerHTML = ''; // Clean up after
+        document.getElementById('multiStickerTemplate').innerHTML = ''; 
     }
 
     function printSlipStickers(sid) {
@@ -522,7 +564,7 @@
 
         document.getElementById('multiStickerTemplate').innerHTML = combinedHTML;
         window.print();
-        document.getElementById('multiStickerTemplate').innerHTML = ''; // Clean up after
+        document.getElementById('multiStickerTemplate').innerHTML = ''; 
     }
 
     function openSlipModal() {
@@ -632,20 +674,20 @@
         let h = ""; let t = 0;
         if (items.length > 0) {
             items.forEach((i, idx) => {
-                h += `<tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>`;
+                h += <tr><td>${idx + 1}</td><td>${i.rollNo}</td><td>${i.sortNo}</td><td>${i.grade}</td><td>${i.meters}</td><td>${i.width || '-'}</td><td>${i.netWeight || '-'}</td></tr>;
                 t += parseFloat(i.meters || 0);
             });
         } else {
             cleanTargetRolls.forEach((r, idx) => {
-                h += `<tr><td>${idx + 1}</td><td>${r}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
+                h += <tr><td>${idx + 1}</td><td>${r}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>;
             });
         }
 
         document.getElementById('slipItems').innerHTML = h;
-        document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
+        document.getElementById('slipTotal').innerText = Total: ${t.toFixed(2)} Meters;
         
         html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
-            const fileName = `Slip_${cli}.png`;
+            const fileName = Slip_${cli}.png;
             
             c.toBlob(function(blob) {
                 const file = new File([blob], fileName, { type: 'image/png' });
@@ -654,7 +696,7 @@
                     navigator.share({
                         files: [file],
                         title: 'Packing Slip',
-                        text: `Packing Slip for ${cli}`
+                        text: Packing Slip for ${cli}
                     }).catch(err => {
                         console.log("Share canceled or failed.", err);
                         fallbackDownload(c.toDataURL(), fileName); 
