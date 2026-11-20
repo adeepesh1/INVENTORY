@@ -41,6 +41,7 @@
         .btn-edit-client { background: #8e44ad; } 
         .btn-edit-transport { background: #e67e22; } 
         .btn-print { background: #444; }
+        .btn-pi { background: #16a085; }
         
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
         .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
@@ -48,48 +49,79 @@
         .limit-msg { text-align: center; color: #888; font-style: italic; background: #fdfdfd; }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; }
-        .modal-box { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .modal-box h3 { margin-top: 0; color: var(--primary); margin-bottom: 20px;}
+        .modal-box { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 420px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-height: 85vh; overflow-y: auto; }
+        .modal-box h3 { margin-top: 0; color: var(--primary); margin-bottom: 15px;}
         .modal-box label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; }
-        .modal-box input { width: 100%; margin-bottom: 15px; background: #fdfdfd; }
+        .modal-box input { width: 100%; margin-bottom: 12px; background: #fdfdfd; }
         .modal-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .pi-item-row { background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e0e0e0; margin-bottom: 10px; }
 
-        /* --- BULLETPROOF PRINT STYLES --- */
+        /* --- BULLETPROOF THERMAL PRINT CSS (100mm x 39mm) --- */
         #multiStickerTemplate { display: none; }
+        
         @media print {
-            /* FIX 1: Completely remove the app from the document flow so it stops generating 222 blank pages */
-            .nav, .content, #slipModal, #slipTemplate { display: none !important; }
-            html, body { margin: 0; padding: 0; background: white; width: 100mm; height: 100%; }
+            body > *:not(#multiStickerTemplate) { display: none !important; }
             
-            /* Show ONLY the stickers */
-            #multiStickerTemplate { display: block !important; position: static; width: 100mm; }
-            
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100mm;
+                background: white !important;
+            }
+
+            #multiStickerTemplate {
+                display: block !important;
+                width: 100mm;
+                margin: 0;
+                padding: 0;
+            }
+
             .sticker-page {
-                width: 100mm; 
-                height: 39.5mm;
-                display: block; 
+                width: 100mm;
+                height: 39mm;
+                display: flex !important;
+                flex-direction: row !important;
                 page-break-after: always;
                 break-after: page;
+                margin: 0;
+                padding: 0;
                 overflow: hidden;
-            }
-            .sticker-half {
-                width: 49.5mm;
-                height: 39.5mm;
-                float: left; 
-                padding: 2mm 2mm 2mm 2mm;
                 box-sizing: border-box;
             }
-            /* FIX 2: Natively scale the font to 15px so you don't need 150% custom scale */
+            
+            .sticker-page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+
+            .sticker-half {
+                width: 50mm;
+                height: 39mm;
+                padding: 3mm 2mm 1mm 4mm;
+                box-sizing: border-box;
+            }
+
             .sticker-grid {
-                display: grid;
-                grid-template-columns: 22mm 3mm auto; /* Widened slightly for the larger font */
+                display: grid !important;
+                grid-template-columns: 20mm 3mm auto;
                 row-gap: 1.5mm;
-                font-family: Arial Bold, Helvetica, sans-serif;
-                font-size: 15px; 
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 14px; 
                 font-weight: bold;
                 color: black;
+                line-height: 1.1;
+                align-items: center;
             }
-            @page { size: 100mm 40mm; margin: 0; }
+
+            .sticker-grid div {
+                display: block !important;
+                margin: 0; padding: 0;
+            }
+
+            @page { 
+                size: 100mm 39mm; 
+                margin: 0; 
+            }
         }
     </style>
 </head>
@@ -162,6 +194,7 @@
     </div>
 </div>
 
+<!-- PACKING SLIP MODAL -->
 <div id="slipModal" class="modal-overlay">
     <div class="modal-box">
         <h3>Generate Packing Slip</h3>
@@ -180,8 +213,23 @@
     </div>
 </div>
 
+<!-- PROFORMA INVOICE RATE MODAL -->
+<div id="piModal" class="modal-overlay">
+    <div class="modal-box">
+        <h3 style="color:#16a085;">Generate Proforma Invoice</h3>
+        <div id="piModalMeta" style="font-size:13px; color:#444; margin-bottom:12px;"></div>
+        <div id="piRateInputs"></div>
+        <div class="modal-buttons">
+            <button onclick="confirmPIModal()" style="background:#16a085; margin-top:0;">Generate PI</button>
+            <button onclick="closePIModal()" style="background:#dc3545; margin-top:0;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- STICKER TEMPLATE -->
 <div id="multiStickerTemplate"></div>
 
+<!-- PACKING SLIP TEMPLATE -->
 <div id="slipTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black;">
     <h1 style="text-align:center; text-decoration: underline;">PACKING LIST</h1>
     <div style="font-size: 18px; margin-bottom: 20px;">
@@ -199,6 +247,69 @@
     <h2 id="slipTotal" style="text-align:right; margin-top:25px;"></h2>
 </div>
 
+<!-- PROFORMA INVOICE TEMPLATE -->
+<div id="piTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black; font-family: Arial, sans-serif; box-sizing:border-box;">
+    <div style="text-align:center; border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 20px;">
+        <div style="font-size: 14px; font-weight: bold; letter-spacing: 2px; color: #555; margin-bottom: 4px;">PROFORMA INVOICE</div>
+        <h1 style="margin: 0; font-size: 28px; letter-spacing: 1px;">ANIL FASHIONS LIMITED</h1>
+    </div>
+    
+    <div style="display:flex; justify-content:space-between; font-size:15px; margin-bottom:25px; line-height:1.6;">
+        <div style="width:55%;">
+            <div style="font-size:12px; color:#666; text-transform:uppercase; font-weight:bold;">Buyer / Consignee</div>
+            <div id="piBuyer" style="font-size:19px; font-weight:bold; margin-top:2px;"></div>
+            <div style="margin-top:4px;"><b>Transport:</b> <span id="piTransport"></span></div>
+        </div>
+        <div style="width:40%; text-align:right;">
+            <div><b>Date:</b> <span id="piDate"></span></div>
+            <div><b>Ref No:</b> <span id="piRef"></span></div>
+        </div>
+    </div>
+
+    <table border="1" style="width:100%; border-collapse:collapse; font-size:15px;">
+        <thead>
+            <tr style="background:#f2f2f2;">
+                <th style="padding:10px; text-align:center; width:8%;">Sr.</th>
+                <th style="padding:10px; text-align:left;">Item / Sort No.</th>
+                <th style="padding:10px; text-align:center; width:12%;">Rolls</th>
+                <th style="padding:10px; text-align:right; width:18%;">Qty (Mtrs)</th>
+                <th style="padding:10px; text-align:right; width:18%;">Rate / Mtr (₹)</th>
+                <th style="padding:10px; text-align:right; width:20%;">Amount (₹)</th>
+            </tr>
+        </thead>
+        <tbody id="piItemsBody"></tbody>
+    </table>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+        <table style="width:360px; border-collapse:collapse; font-size:15px;">
+            <tr>
+                <td style="padding:7px 10px; border-bottom:1px solid #ddd;"><b>Taxable Amount</b></td>
+                <td id="piSubTotal" style="padding:7px 10px; text-align:right; border-bottom:1px solid #ddd;"></td>
+            </tr>
+            <tr>
+                <td style="padding:7px 10px; border-bottom:1px solid #ddd;"><b>GST @ 5%</b></td>
+                <td id="piGst" style="padding:7px 10px; text-align:right; border-bottom:1px solid #ddd;"></td>
+            </tr>
+            <tr>
+                <td style="padding:7px 10px; border-bottom:1px solid #ddd;"><b>Round Off</b></td>
+                <td id="piRoundOff" style="padding:7px 10px; text-align:right; border-bottom:1px solid #ddd;"></td>
+            </tr>
+            <tr style="background:#f2f2f2; font-size:18px;">
+                <td style="padding:10px; border-top:2px solid #222; border-bottom:2px solid #222;"><b>Total Invoice Amount</b></td>
+                <td id="piGrandTotal" style="padding:10px; text-align:right; font-weight:bold; border-top:2px solid #222; border-bottom:2px solid #222;"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div style="margin-top:50px; display:flex; justify-content:space-between; align-items:flex-end; font-size:13px; color:#555;">
+        <div>E. & O.E.</div>
+        <div style="text-align:right;">
+            <div style="font-weight:bold; color:#000; margin-bottom:35px;">For ANIL FASHIONS LIMITED</div>
+            <div style="border-top:1px solid #888; padding-top:5px;">Authorised Signatory</div>
+        </div>
+    </div>
+</div>
+
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbydmekX7ltbx0_vCBq8J3epM7KIpFGnK1pGRZGxjxl3T7rxgQ-bWLUz7Cf_uFPQtW8BGw/exec"; 
@@ -208,6 +319,7 @@
     let currentLocation = 'Main'; 
     let renderTimer; 
     let pendingSlipRolls = []; 
+    let currentPIData = null;
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -280,7 +392,6 @@
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(payload)
             });
-            // NEW: Wait 1.5 seconds for Google Sheets to finish writing before continuing!
             await new Promise(resolve => setTimeout(resolve, 1500));
         } catch (error) {
             console.warn("Post bypassed successfully or threw warning:", error);
@@ -366,11 +477,12 @@
                     let editClientAction = isCanceled ? '' : `<button class="btn-small btn-edit-client" style="margin-left:5px;" onclick="editSlipClient('${s.id}')">✎ Client</button>`;
                     let editTransportAction = isCanceled ? '' : `<button class="btn-small btn-edit-transport" style="margin-left:5px;" onclick="editSlipTransport('${s.id}')">🚚 Transp</button>`;
                     let printStickersAction = isCanceled ? '' : `<button class="btn-small btn-print" style="margin-left:5px;" onclick="printSlipStickers('${s.id}')" title="Print All Roll Stickers">🖨️</button>`;
+                    let piAction = isCanceled ? '' : `<button class="btn-small btn-pi" style="margin-left:5px;" onclick="openPIModal('${s.id}')" title="Generate Proforma Invoice">🧾 PI</button>`;
 
                     slipHTML.push(`<tr>
                         <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
                         <td style="${statusStyle}">${s.status}</td>
-                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${printStickersAction}${editClientAction}${editTransportAction}${cancelAction}</td>
+                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${piAction}${printStickersAction}${editClientAction}${editTransportAction}${cancelAction}</td>
                     </tr>`);
                 }
                 slipCount++;
@@ -479,7 +591,6 @@
         loadData();
     }
 
-    // --- HELPER FUNCTION: Generates rigid 2-up sticker HTML ---
     function generateStickerHTML(item) {
         const innerHTML = `
             <div class="sticker-grid">
@@ -505,7 +616,7 @@
 
         document.getElementById('multiStickerTemplate').innerHTML = generateStickerHTML(item);
         window.print();
-        document.getElementById('multiStickerTemplate').innerHTML = ''; // Clean up after
+        document.getElementById('multiStickerTemplate').innerHTML = ''; 
     }
 
     function printSlipStickers(sid) {
@@ -524,7 +635,110 @@
 
         document.getElementById('multiStickerTemplate').innerHTML = combinedHTML;
         window.print();
-        document.getElementById('multiStickerTemplate').innerHTML = ''; // Clean up after
+        document.getElementById('multiStickerTemplate').innerHTML = ''; 
+    }
+
+    // --- PROFORMA INVOICE ENGINE ---
+    function openPIModal(sid) {
+        const slip = db.slips.find(x => String(x.id) === String(sid));
+        if (!slip) return;
+
+        const arrayRolls = String(slip.rolls).replace(/^'/, "").split(",").map(r => r.trim().toUpperCase()).filter(Boolean);
+        const matchedItems = db.inventory.filter(i => arrayRolls.includes(String(i.rollNo).trim().toUpperCase()));
+
+        if (matchedItems.length === 0) {
+            return alert("No matching rolls found in inventory for this slip.");
+        }
+
+        // Group rolls by Sort No
+        const grouped = {};
+        matchedItems.forEach(item => {
+            const sortKey = String(item.sortNo || "Fabric").trim();
+            if (!grouped[sortKey]) {
+                grouped[sortKey] = { sortNo: sortKey, rolls: 0, meters: 0 };
+            }
+            grouped[sortKey].rolls += 1;
+            grouped[sortKey].meters += parseFloat(item.meters || 0);
+        });
+
+        const groupsArray = Object.values(grouped);
+        currentPIData = { slip, groups: groupsArray };
+
+        document.getElementById('piModalMeta').innerHTML = `
+            <b>Buyer:</b> ${slip.client}<br>
+            <b>Date:</b> ${slip.date}
+        `;
+
+        let inputsHTML = "";
+        groupsArray.forEach((g, idx) => {
+            inputsHTML += `
+                <div class="pi-item-row">
+                    <div style="font-size:13px; margin-bottom:6px;">
+                        <b>Sort: ${g.sortNo}</b> — ${g.meters.toFixed(2)} Mtrs (${g.rolls} Rolls)
+                    </div>
+                    <input type="number" step="0.01" id="piRate_${idx}" placeholder="Enter Rate per Meter (₹)" style="margin-bottom:0;">
+                </div>
+            `;
+        });
+
+        document.getElementById('piRateInputs').innerHTML = inputsHTML;
+        document.getElementById('piModal').style.display = 'flex';
+    }
+
+    function closePIModal() {
+        document.getElementById('piModal').style.display = 'none';
+        currentPIData = null;
+    }
+
+    function formatINR(num) {
+        return "₹ " + Number(num).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function confirmPIModal() {
+        if (!currentPIData) return;
+
+        const { slip, groups } = currentPIData;
+        let subTotal = 0;
+        let rowsHTML = "";
+
+        for (let i = 0; i < groups.length; i++) {
+            const rateVal = parseFloat(document.getElementById(`piRate_${i}`).value);
+            if (isNaN(rateVal) || rateVal <= 0) {
+                return alert(`Please enter a valid rate per meter for Sort ${groups[i].sortNo}.`);
+            }
+            const amount = groups[i].meters * rateVal;
+            subTotal += amount;
+
+            rowsHTML += `
+                <tr>
+                    <td style="padding:10px; text-align:center;">${i + 1}</td>
+                    <td style="padding:10px; text-align:left;"><b>Sort ${groups[i].sortNo}</b></td>
+                    <td style="padding:10px; text-align:center;">${groups[i].rolls}</td>
+                    <td style="padding:10px; text-align:right;">${groups[i].meters.toFixed(2)}</td>
+                    <td style="padding:10px; text-align:right;">${rateVal.toFixed(2)}</td>
+                    <td style="padding:10px; text-align:right;">${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            `;
+        }
+
+        const gstAmount = subTotal * 0.05;
+        const rawTotal = subTotal + gstAmount;
+        const roundedTotal = Math.round(rawTotal);
+        const roundOff = roundedTotal - rawTotal;
+        const roundOffStr = (roundOff >= 0 ? "+" : "-") + " ₹ " + Math.abs(roundOff).toFixed(2);
+
+        document.getElementById('piBuyer').innerText = slip.client;
+        document.getElementById('piTransport').innerText = slip.transport || '-';
+        document.getElementById('piDate').innerText = slip.date;
+        document.getElementById('piRef').innerText = slip.id;
+        document.getElementById('piItemsBody').innerHTML = rowsHTML;
+        document.getElementById('piSubTotal').innerText = formatINR(subTotal);
+        document.getElementById('piGst').innerText = formatINR(gstAmount);
+        document.getElementById('piRoundOff').innerText = roundOffStr;
+        document.getElementById('piGrandTotal').innerText = formatINR(roundedTotal);
+
+        closePIModal();
+        exportCanvasImage('piTemplate', `Proforma_${slip.client}.png`, 'Proforma Invoice', `Proforma Invoice for ${slip.client}`);
     }
 
     function openSlipModal() {
@@ -545,7 +759,45 @@
         const trans = document.getElementById('modalTransportInput').value.trim();
         
         if (!cli || !trans) return alert("Client and Transport fields are required.");
-        
+
+        let finalRolls = [...new Set(pendingSlipRolls.map(r => String(r).trim().toUpperCase()))];
+
+        let duplicatesInDB = [];
+        let alreadySold = [];
+        let notFound = [];
+
+        finalRolls.forEach(roll => {
+            const cleanRoll = roll.toLowerCase();
+            const matches = db.inventory.filter(i => String(i.rollNo).trim().toLowerCase() === cleanRoll);
+            
+            if (matches.length === 0) {
+                notFound.push(roll);
+            } else if (matches.length > 1) {
+                duplicatesInDB.push(roll);
+            } else {
+                if (matches[0].status !== 'Available') {
+                    alreadySold.push(roll);
+                }
+            }
+        });
+
+        let errorMsg = "";
+        if (duplicatesInDB.length > 0) {
+            errorMsg += "❌ DATABASE DUPLICATES (Roll exists multiple times in Google Sheets):\n" + duplicatesInDB.join(", ") + "\n\n";
+        }
+        if (alreadySold.length > 0) {
+            errorMsg += "❌ ALREADY SOLD (These rolls were previously billed):\n" + alreadySold.join(", ") + "\n\n";
+        }
+        if (notFound.length > 0) {
+            errorMsg += "❌ NOT FOUND IN INVENTORY:\n" + notFound.join(", ") + "\n\n";
+        }
+
+        if (errorMsg !== "") {
+            document.getElementById('slipModal').style.display = 'none'; 
+            alert("🚨 CANNOT GENERATE SLIP 🚨\n\n" + errorMsg + "Please fix these roll numbers in your inventory and try again.");
+            return; 
+        }
+
         document.getElementById('slipModal').style.display = 'none'; 
 
         const statusDisplay = document.getElementById('selectedTotal');
@@ -553,8 +805,8 @@
         statusDisplay.innerText = "Saving to database... Please wait.";
 
         try {
-            await safePost({action:"allot", rollNos:pendingSlipRolls, client:cli, transport:trans});
-            buildImage(cli, trans, new Date().toLocaleDateString(), pendingSlipRolls, "");
+            await safePost({action:"allot", rollNos:finalRolls, client:cli, transport:trans});
+            buildImage(cli, trans, new Date().toLocaleDateString(), finalRolls, "");
             pendingSlipRolls = []; 
             loadData();
         } catch (error) {
@@ -613,6 +865,36 @@
         }
     }
 
+    function exportCanvasImage(elementId, fileName, title, text) {
+        html2canvas(document.getElementById(elementId), {scale: 2}).then(c => {
+            c.toBlob(function(blob) {
+                const file = new File([blob], fileName, { type: 'image/png' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        files: [file],
+                        title: title,
+                        text: text
+                    }).catch(err => {
+                        console.log("Share canceled or failed.", err);
+                        fallbackDownload(c.toDataURL(), fileName); 
+                    });
+                } else {
+                    fallbackDownload(c.toDataURL(), fileName);
+                }
+            });
+
+            function fallbackDownload(url, name) {
+                const a = document.createElement('a'); 
+                a.href = url; 
+                a.download = name; 
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        });
+    }
+
     function buildImage(cli, trans, date, rollNos, invoiceNum = "") {
         const cleanTargetRolls = rollNos.map(r => String(r).replace(/['"\s]/g, "").trim().toUpperCase());
         const items = db.inventory.filter(i => {
@@ -646,35 +928,7 @@
         document.getElementById('slipItems').innerHTML = h;
         document.getElementById('slipTotal').innerText = `Total: ${t.toFixed(2)} Meters`;
         
-        html2canvas(document.getElementById('slipTemplate'), {scale: 2}).then(c => {
-            const fileName = `Slip_${cli}.png`;
-            
-            c.toBlob(function(blob) {
-                const file = new File([blob], fileName, { type: 'image/png' });
-                
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        files: [file],
-                        title: 'Packing Slip',
-                        text: `Packing Slip for ${cli}`
-                    }).catch(err => {
-                        console.log("Share canceled or failed.", err);
-                        fallbackDownload(c.toDataURL(), fileName); 
-                    });
-                } else {
-                    fallbackDownload(c.toDataURL(), fileName);
-                }
-            });
-
-            function fallbackDownload(url, name) {
-                const a = document.createElement('a'); 
-                a.href = url; 
-                a.download = name; 
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
-        });
+        exportCanvasImage('slipTemplate', `Slip_${cli}.png`, 'Packing Slip', `Packing Slip for ${cli}`);
     }
 
     window.onload = function() { loadData(); };
