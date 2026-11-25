@@ -179,10 +179,11 @@
         <h3>Archive</h3>
         <table>
             <thead>
-                <tr><th>Date</th><th>Client</th><th>Transport</th><th>Invoice</th><th>Status</th><th>Action</th></tr>
+                <tr><th>Date</th><th>Client</th><th>Transport</th><th>Meters</th><th>Invoice</th><th>Status</th><th>Action</th></tr>
                 <tr class="filter-row">
                     <td></td>
                     <td><input type="text" id="fSlipClient" oninput="debouncedRender()" placeholder="Client..."></td>
+                    <td></td>
                     <td></td>
                     <td><input type="text" id="fSlipInv" oninput="debouncedRender()" placeholder="Invoice..."></td>
                     <td><input type="text" id="fSlipStatus" oninput="debouncedRender()" placeholder="Status..."></td>
@@ -338,7 +339,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4trBIaASvm9I2A_gUf4HWPZ3AEnCJDrgJDNmGv5yufbUTW-bSgYKR58JjM3lTT1X9bg/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyj4yd3DmFCReIc_f_9J9fx9Zqt3RlyIoE1YM2u1oE8LzJ1n9J_C3-OK9ywnXBn4OJe3A/exec"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -508,8 +509,16 @@
                     let piAction = isCanceled ? '' : `<button class="btn-small btn-pi" style="margin-left:5px;" onclick="openPIModal('${s.id}')" title="Generate Proforma Invoice">🧾 PI</button>`;
                     let editRollsAction = isCanceled ? '' : `<button class="btn-small btn-edit" style="margin-left:5px;" onclick="openEditRollsModal('${s.id}')" title="Add or Remove Rolls">✏️ Rolls</button>`;
 
+                    let slipMeters = parseFloat(s.totalMeters || 0);
+                    if (!slipMeters && s.rolls) {
+                        const rArr = String(s.rolls).replace(/^'/, "").split(",").map(r => r.trim().toUpperCase());
+                        slipMeters = db.inventory
+                            .filter(item => rArr.includes(String(item.rollNo).trim().toUpperCase()))
+                            .reduce((sum, item) => sum + (parseFloat(item.meters) || 0), 0);
+                    }
+
                     slipHTML.push(`<tr>
-                        <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
+                        <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td><b>${slipMeters.toFixed(2)}m</b></td><td>${invoiceDisplay}</td>
                         <td style="${statusStyle}">${s.status}</td>
                         <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${piAction}${editRollsAction}${printStickersAction}${editClientAction}${editTransportAction}${cancelAction}</td>
                     </tr>`);
@@ -519,7 +528,7 @@
         });
 
         ib.innerHTML = invHTML.join('') + (invCount > LIMIT ? `<tr><td colspan="8" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
-        slb.innerHTML = slipHTML.join('') + (slipCount > LIMIT ? `<tr><td colspan="6" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
+        slb.innerHTML = slipHTML.join('') + (slipCount > LIMIT ? `<tr><td colspan="7" class="limit-msg">Showing first ${LIMIT} matches. Narrow search to see more.</td></tr>` : '');
 
         const sa = document.getElementById('selectAllCb');
         if (sa) sa.checked = false;
