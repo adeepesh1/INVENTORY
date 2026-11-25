@@ -226,6 +226,26 @@
     </div>
 </div>
 
+<!-- EDIT SLIP ROLLS MODAL -->
+<div id="editRollsModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:460px;">
+        <h3 style="color:#007bff;">Edit Packing Slip Rolls</h3>
+        <div id="editRollsMeta" style="font-size:13px; color:#444; margin-bottom:10px;"></div>
+
+        <label style="margin-top:8px;">Current Rolls on Slip:</label>
+        <div id="editCurrentRollsList" style="max-height:160px; overflow-y:auto; border:1px solid #ddd; border-radius:6px; padding:6px; background:#fafafa; margin-bottom:12px;"></div>
+
+        <label>Add Available Rolls:</label>
+        <input type="text" id="editRollSearch" oninput="renderEditRollsUI()" placeholder="Search by Roll No or Sort No..." style="margin-bottom:6px;">
+        <div id="editAvailableRollsList" style="max-height:160px; overflow-y:auto; border:1px solid #ddd; border-radius:6px; padding:6px; background:#fff;"></div>
+
+        <div class="modal-buttons" style="margin-top:15px;">
+            <button id="saveEditRollsBtn" onclick="saveEditedSlipRolls()" style="background:#28a745; margin-top:0;">Save Changes</button>
+            <button onclick="closeEditRollsModal()" style="background:#dc3545; margin-top:0;">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <!-- STICKER TEMPLATE -->
 <div id="multiStickerTemplate"></div>
 
@@ -247,7 +267,6 @@
     <h2 id="slipTotal" style="text-align:right; margin-top:25px;"></h2>
 </div>
 
-<!-- PROFORMA INVOICE TEMPLATE -->
 <!-- PROFORMA INVOICE TEMPLATE -->
 <div id="piTemplate" style="position:absolute; left:-9999px; width:850px; padding:40px; background:white; color:black; font-family: Arial, sans-serif; box-sizing:border-box;">
     <div style="text-align:center; border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 20px;">
@@ -316,10 +335,10 @@
         </div>
     </div>
 </div>
-    
+
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbydmekX7ltbx0_vCBq8J3epM7KIpFGnK1pGRZGxjxl3T7rxgQ-bWLUz7Cf_uFPQtW8BGw/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4trBIaASvm9I2A_gUf4HWPZ3AEnCJDrgJDNmGv5yufbUTW-bSgYKR58JjM3lTT1X9bg/exec"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -327,6 +346,8 @@
     let renderTimer; 
     let pendingSlipRolls = []; 
     let currentPIData = null;
+    let editingSlipId = null;
+    let editingSlipRolls = [];
 
     function showTab(id, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -485,11 +506,12 @@
                     let editTransportAction = isCanceled ? '' : `<button class="btn-small btn-edit-transport" style="margin-left:5px;" onclick="editSlipTransport('${s.id}')">🚚 Transp</button>`;
                     let printStickersAction = isCanceled ? '' : `<button class="btn-small btn-print" style="margin-left:5px;" onclick="printSlipStickers('${s.id}')" title="Print All Roll Stickers">🖨️</button>`;
                     let piAction = isCanceled ? '' : `<button class="btn-small btn-pi" style="margin-left:5px;" onclick="openPIModal('${s.id}')" title="Generate Proforma Invoice">🧾 PI</button>`;
+                    let editRollsAction = isCanceled ? '' : `<button class="btn-small btn-edit" style="margin-left:5px;" onclick="openEditRollsModal('${s.id}')" title="Add or Remove Rolls">✏️ Rolls</button>`;
 
                     slipHTML.push(`<tr>
                         <td>${s.date}</td><td>${s.client}</td><td>${s.transport}</td><td>${invoiceDisplay}</td>
                         <td style="${statusStyle}">${s.status}</td>
-                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${piAction}${printStickersAction}${editClientAction}${editTransportAction}${cancelAction}</td>
+                        <td><button class="btn-small" onclick="rebuildSlip('${s.id}')">PDF</button>${piAction}${editRollsAction}${printStickersAction}${editClientAction}${editTransportAction}${cancelAction}</td>
                     </tr>`);
                 }
                 slipCount++;
@@ -657,7 +679,6 @@
             return alert("No matching rolls found in inventory for this slip.");
         }
 
-        // Group rolls by Sort No
         const grouped = {};
         matchedItems.forEach(item => {
             const sortKey = String(item.sortNo || "Fabric").trim();
@@ -746,6 +767,107 @@
 
         closePIModal();
         exportCanvasImage('piTemplate', `Proforma_${slip.client}.png`, 'Proforma Invoice', `Proforma Invoice for ${slip.client}`);
+    }
+
+    // --- EDIT SLIP ROLLS ENGINE ---
+    function openEditRollsModal(sid) {
+        const slip = db.slips.find(x => String(x.id) === String(sid));
+        if (!slip) return;
+
+        editingSlipId = sid;
+        editingSlipRolls = String(slip.rolls)
+            .replace(/^'/, "")
+            .split(",")
+            .map(r => r.trim())
+            .filter(Boolean);
+
+        document.getElementById('editRollsMeta').innerHTML = `<b>Client:</b> ${slip.client} &nbsp;|&nbsp; <b>Date:</b> ${slip.date}`;
+        document.getElementById('editRollSearch').value = '';
+        renderEditRollsUI();
+        document.getElementById('editRollsModal').style.display = 'flex';
+    }
+
+    function renderEditRollsUI() {
+        const currentDiv = document.getElementById('editCurrentRollsList');
+        const availDiv = document.getElementById('editAvailableRollsList');
+        const search = document.getElementById('editRollSearch').value.trim().toLowerCase();
+
+        const currentUpper = editingSlipRolls.map(r => r.toUpperCase());
+
+        if (editingSlipRolls.length === 0) {
+            currentDiv.innerHTML = `<div style="color:#888; font-size:12px; padding:6px;">No rolls left. Add rolls below or cancel the slip.</div>`;
+        } else {
+            let totalMtr = 0;
+            let html = editingSlipRolls.map(rNo => {
+                const item = db.inventory.find(i => String(i.rollNo).trim().toUpperCase() === rNo.toUpperCase());
+                const mtr = item ? parseFloat(item.meters || 0) : 0;
+                totalMtr += mtr;
+                const info = item ? `Sort ${item.sortNo} • ${item.meters}m` : '';
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 6px; border-bottom:1px solid #eee; font-size:13px;">
+                        <span><b>${rNo}</b> <small style="color:#666;">${info}</small></span>
+                        <button class="btn-small btn-revert" onclick="removeRollFromEdit('${rNo}')">✖</button>
+                    </div>`;
+            }).join('');
+            currentDiv.innerHTML = `<div style="font-size:12px; font-weight:bold; color:var(--primary); padding:4px 6px;">Total: ${editingSlipRolls.length} Rolls (${totalMtr.toFixed(2)}m)</div>` + html;
+        }
+
+        const available = db.inventory.filter(i => {
+            if (i.status !== 'Available') return false;
+            const rUp = String(i.rollNo).trim().toUpperCase();
+            if (currentUpper.includes(rUp)) return false;
+            if (!search) return true;
+            return rUp.toLowerCase().includes(search) || String(i.sortNo || '').toLowerCase().includes(search);
+        }).slice(0, 40);
+
+        if (available.length === 0) {
+            availDiv.innerHTML = `<div style="color:#888; font-size:12px; padding:6px;">No matching available rolls.</div>`;
+        } else {
+            availDiv.innerHTML = available.map(i => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 6px; border-bottom:1px solid #eee; font-size:13px;">
+                    <span><b>${i.rollNo}</b> <small style="color:#666;">Sort ${i.sortNo} • ${i.meters}m (${i.location})</small></span>
+                    <button class="btn-small" onclick="addRollToEdit('${i.rollNo}')">+ Add</button>
+                </div>`).join('');
+        }
+    }
+
+    function removeRollFromEdit(rNo) {
+        editingSlipRolls = editingSlipRolls.filter(r => r.toUpperCase() !== rNo.toUpperCase());
+        renderEditRollsUI();
+    }
+
+    function addRollToEdit(rNo) {
+        if (!editingSlipRolls.some(r => r.toUpperCase() === rNo.toUpperCase())) {
+            editingSlipRolls.push(rNo);
+        }
+        renderEditRollsUI();
+    }
+
+    function closeEditRollsModal() {
+        document.getElementById('editRollsModal').style.display = 'none';
+        editingSlipId = null;
+        editingSlipRolls = [];
+    }
+
+    async function saveEditedSlipRolls() {
+        if (editingSlipRolls.length === 0) {
+            return alert("A packing slip must have at least 1 roll. If you want to remove all rolls, use the Cancel button instead.");
+        }
+
+        const btn = document.getElementById('saveEditRollsBtn');
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        await safePost({
+            action: "editSlipRolls",
+            slipId: editingSlipId,
+            newRollNos: editingSlipRolls
+        });
+
+        btn.innerText = "Save Changes";
+        btn.disabled = false;
+        closeEditRollsModal();
+        loadData();
     }
 
     function openSlipModal() {
