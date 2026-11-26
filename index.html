@@ -44,7 +44,7 @@
         .btn-pi { background: #16a085; }
         
         .live-counter { font-size: 15px; font-weight: bold; color: var(--accent); padding: 5px 2px; margin-top: 10px; }
-        .filter-row input { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
+        .filter-row input, .filter-row select { padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; background: white; }
         .filter-row td { padding: 4px 6px; background: #fafafa; border-bottom: 2px solid #ddd; }
         .limit-msg { text-align: center; color: #888; font-style: italic; background: #fdfdfd; }
 
@@ -168,7 +168,16 @@
                     <td><input type="text" id="fInvRoll" oninput="debouncedRender()" placeholder="Filter Roll..."></td>
                     <td><input type="text" id="fInvSort" oninput="debouncedRender()" placeholder="Filter Sort..."></td>
                     <td><input type="text" id="fInvGrade" oninput="debouncedRender()" placeholder="Filter Grade..."></td>
-                    <td></td><td></td><td></td><td></td>
+                    <td>
+                        <select id="fInvMtr" onchange="render()">
+                            <option value="">All</option>
+                            <option value="big">Big (100m+)</option>
+                            <option value="small">Small (Under 100m)</option>
+                            <option value="desc">Big to Small</option>
+                            <option value="asc">Small to Big</option>
+                        </select>
+                    </td>
+                    <td></td><td></td><td></td>
                 </tr>
             </thead>
             <tbody id="invBody"></tbody>
@@ -339,7 +348,7 @@
 
 <script>
     // ⚠️ CRITICAL: Replace this with your newly deployed URL!
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyj4yd3DmFCReIc_f_9J9fx9Zqt3RlyIoE1YM2u1oE8LzJ1n9J_C3-OK9ywnXBn4OJe3A/exec"; 
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxopRjSZtyES2qZNs7_zaXnxSPT1OOMghUCWNwMBmLMRLrhLssUBO_CL5wHp35nQAw-sA/exec"; 
     
     let db = { inventory: [], slips: [], clients: [], transporters: [] };
     let isEditMode = false;
@@ -375,6 +384,7 @@
 
     function clearAllFilters() {
         document.querySelectorAll('.filter-row input').forEach(inp => inp.value = '');
+        document.querySelectorAll('.filter-row select').forEach(sel => sel.value = '');
         render();
     }
 
@@ -440,6 +450,7 @@
         const fInvRoll = textVal('fInvRoll');
         const fInvSort = textVal('fInvSort');
         const fInvGrade = textVal('fInvGrade');
+        const fInvMtr = document.getElementById('fInvMtr') ? document.getElementById('fInvMtr').value : '';
         const fSlipClient = textVal('fSlipClient');
         const fSlipInv = textVal('fSlipInv');
         const fSlipStatus = textVal('fSlipStatus');
@@ -451,19 +462,26 @@
         let sortTotals = {};
         const LIMIT = 150; 
 
-        db.inventory.forEach(i => {
+        let invList = [...db.inventory];
+        if (fInvMtr === 'desc') invList.sort((a, b) => (parseFloat(b.meters) || 0) - (parseFloat(a.meters) || 0));
+        if (fInvMtr === 'asc') invList.sort((a, b) => (parseFloat(a.meters) || 0) - (parseFloat(b.meters) || 0));
+
+        invList.forEach(i => {
             let s = String(i.sortNo || "N/A");
             let r = String(i.rollNo || "");
             let g = String(i.grade || "");
+            let m = parseFloat(i.meters || 0);
 
             if (i.status === 'Available' && i.location === currentLocation) {
                 let matchCol = true;
                 if (fInvRoll && !r.toLowerCase().includes(fInvRoll)) matchCol = false;
                 if (fInvSort && !s.toLowerCase().includes(fInvSort)) matchCol = false;
                 if (fInvGrade && !g.toLowerCase().includes(fInvGrade)) matchCol = false;
+                if (fInvMtr === 'big' && m < 100) matchCol = false;
+                if (fInvMtr === 'small' && m >= 100) matchCol = false;
 
                 if (matchCol) {
-                    sortTotals[s] = (sortTotals[s] || 0) + parseFloat(i.meters || 0);
+                    sortTotals[s] = (sortTotals[s] || 0) + m;
 
                     if (invCount < LIMIT) {
                         invHTML.push(`<tr>
